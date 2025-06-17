@@ -21,6 +21,8 @@ resource "aws_security_group" "mongodb" {
   tags = {
     Name        = "${var.project_name}-mongodb-${var.environment}"
     Environment = var.environment
+    Application = "${var.project_name}_${var.application_name}"
+    Project     = var.project_name
   }
 }
 
@@ -32,6 +34,8 @@ resource "aws_docdb_subnet_group" "mongodb" {
   tags = {
     Name        = "${var.project_name}-mongodb-subnet-group-${var.environment}"
     Environment = var.environment
+    Application = "${var.project_name}_${var.application_name}"
+    Project     = var.project_name
   }
 }
 
@@ -50,6 +54,8 @@ resource "aws_docdb_cluster" "mongodb" {
   tags = {
     Name        = "${var.project_name}-mongodb-${var.environment}"
     Environment = var.environment
+    Application = "${var.project_name}_${var.application_name}"
+    Project     = var.project_name
   }
 }
 
@@ -63,5 +69,7 @@ resource "aws_docdb_cluster_instance" "mongodb" {
   tags = {
     Name        = "${var.project_name}-mongodb-instance-${var.environment}-${count.index}"
     Environment = var.environment
+    Application = "${var.project_name}_${var.application_name}"
+    Project     = var.project_name
   }
 }

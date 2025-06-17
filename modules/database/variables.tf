@@ -8,6 +8,12 @@ variable "environment" {
   type        = string
 }
 
+variable "application_name" {
+  description = "Application name"
+  type        = string
+  default     = "database"
+}
+
 variable "mongodb_username" {
   description = "MongoDB master username"
   type        = string
@@ -33,7 +39,7 @@ variable "subnet_ids" {
 variable "instance_class" {
   description = "DocumentDB instance class"
   type        = string
-  default     = "db.t4g.medium"
+  default     = "t3.medium"
 }
 
 variable "backup_retention_period" {

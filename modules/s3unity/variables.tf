@@ -8,6 +8,12 @@ variable "environment" {
   type        = string
 }
 
+variable "application_name" {
+  description = "Application name"
+  type        = string
+  default     = "s3unity"
+}
+
 variable "allow_direct_s3_access" {
   description = "Allow direct public access to S3 bucket objects"
   type        = bool

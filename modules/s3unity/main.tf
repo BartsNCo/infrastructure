@@ -2,8 +2,10 @@ resource "aws_s3_bucket" "unity-assests" {
   bucket = "unity-webgl-deployment"
 
   tags = {
-    Name        = ""
-    Environment = "Dev"
+    Name        = "${var.project_name}-unity-${var.environment}"
+    Environment = var.environment
+    Application = "${var.project_name}_${var.application_name}"
+    Project     = var.project_name
   }
 }
 
@@ -120,5 +122,7 @@ resource "aws_cloudfront_distribution" "unity" {
   tags = {
     Name        = "${var.project_name}-unity-cloudfront-${var.environment}"
     Environment = var.environment
+    Application = "${var.project_name}_${var.application_name}"
+    Project     = var.project_name
   }
 }
