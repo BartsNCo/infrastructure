@@ -7,6 +7,16 @@ resource "aws_s3_bucket" "unity-assests" {
   }
 }
 
+# S3 bucket public access block - conditional based on allow_direct_s3_access
+resource "aws_s3_bucket_public_access_block" "unity" {
+  bucket = aws_s3_bucket.unity-assests.id
+
+  block_public_acls       = !var.allow_direct_s3_access
+  block_public_policy     = !var.allow_direct_s3_access
+  ignore_public_acls      = !var.allow_direct_s3_access
+  restrict_public_buckets = !var.allow_direct_s3_access
+}
+
 resource "aws_s3_bucket_website_configuration" "http-config" {
   bucket = aws_s3_bucket.unity-assests.id
 
