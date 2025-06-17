@@ -43,3 +43,15 @@ variable "project_name" {
   type        = string
   default     = "barts"
 }
+
+variable "mongodb_username" {
+  description = "MongoDB master username"
+  type        = string
+  sensitive   = true
+}
+
+variable "mongodb_password" {
+  description = "MongoDB master password"
+  type        = string
+  sensitive   = true
+}
