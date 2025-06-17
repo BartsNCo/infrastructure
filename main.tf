@@ -6,7 +6,7 @@ terraform {
       version = "~> 5.0"
     }
   }
-  
+
   backend "s3" {
     bucket  = "barts-terraform-state-1750103475"
     key     = "terraform.tfstate"
