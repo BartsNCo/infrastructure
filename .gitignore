@@ -1,15 +1,1 @@
-# Terraform
-*.tfstate
-*.tfstate.*
-*.tfvars.json
-*.tfplan
-.terraform/
-.terraform.lock.hcl
-terraform.tfvars
-
-# AWS
-.aws/
-
-# General
-.DS_Store
-*.log
+.envrc
