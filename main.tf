@@ -8,10 +8,9 @@ terraform {
   }
 
   backend "s3" {
-    bucket  = "barts-terraform-state-1750103475"
-    key     = "terraform.tfstate"
-    region  = "us-east-1"
-    profile = "barts-admin"
+    bucket = "barts-terraform-state-1750103475"
+    key    = "terraform.tfstate"
+    region = "us-east-1"
   }
 }
 
@@ -37,6 +36,7 @@ module "database" {
 module "s3unity" {
   source = "./modules/s3unity"
 
-  project_name = var.project_name
-  environment  = terraform.workspace
+  project_name           = var.project_name
+  environment            = terraform.workspace
+  allow_direct_s3_access = true
 }

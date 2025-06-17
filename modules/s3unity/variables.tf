@@ -7,3 +7,9 @@ variable "environment" {
   description = "Environment name"
   type        = string
 }
+
+variable "allow_direct_s3_access" {
+  description = "Allow direct public access to S3 bucket objects"
+  type        = bool
+  default     = false
+}
