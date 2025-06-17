@@ -25,18 +25,13 @@ variable "environments" {
     description         = string
     solution_stack_name = string
     tier                = string # WebServer or Worker
+    instance_type          = string
     settings = list(object({
       namespace = string
       name      = string
       value     = string
     }))
   }))
-}
-
-variable "instance_type" {
-  description = "EC2 instance type for Elastic Beanstalk environments"
-  type        = string
-  default     = "t3.micro"
 }
 
 variable "tags" {

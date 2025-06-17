@@ -139,7 +139,7 @@ resource "aws_elastic_beanstalk_environment" "environments" {
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "InstanceType"
-    value     = var.instance_type
+    value     = each.value.instance_type
   }
 
   setting {

@@ -41,34 +41,60 @@ module "s3unity" {
   allow_direct_s3_access = true
 }
 
-# App Stack module - Frontend
-module "frontend_stack" {
+# Existing AWS Elastic Beanstalk Applications (for reference):
+# Applications:
+# - barts-backend
+# - BartsViewer
+#
+# Environments:
+# - BartsViewer-Backend-Dev (Application: barts-backend, Status: Ready, Health: Green)
+# - BartsViewer-Frontend-Dev (Application: BartsViewer, Status: Ready, Health: Green)
+# - frontend (Application: BartsViewer, Status: Terminated)
+#
+# Note: These existing resources are not yet managed by Terraform.
+# Consider migrating them to use the app-stack module for consistent management.
+
+# Barts VR application stack
+module "barts_app_stack" {
   source = "./modules/app-stack"
 
   project_name            = var.project_name
   environment             = terraform.workspace
   application_name        = "viewer"
-  application_description = "Barts Viewer Application"
-
-  instance_type = "t3.micro"
+  application_description = "Barts Viewer"
 
   environments = {
-    "frontend" = {
-      description         = "Frontend"
-      solution_stack_name = "64bit Amazon Linux 2023 v6.5.2 running Node.js 20"
+    backend = {
+      description         = "Backend development environment"
+      solution_stack_name = "64bit Amazon Linux 2023 v6.1.8 running Node.js 20"
       tier                = "WebServer"
+      instance_type       = "t3.micro"
       settings = [
         {
           namespace = "aws:elasticbeanstalk:application:environment"
-          name      = "VITE_API_URL"
-          value     = "https://bartsviewer-backend-dev.eba-i2b5m8my.us-east-1.elasticbeanstalk.com"
+          name      = "NODE_ENV"
+          value     = "development"
+        },
+        {
+          namespace = "aws:elasticbeanstalk:application:environment"
+          name      = "MONGODB_URI"
+          value     = module.database.mongodb_connection_string
+        }
+      ]
+    }
+    frontend = {
+      description         = "Frontend development environment"
+      solution_stack_name = "64bit Amazon Linux 2023 v6.1.8 running Node.js 20"
+      tier                = "WebServer"
+      instance_type       = "t3.micro"
+      settings = [
+        {
+          namespace = "aws:elasticbeanstalk:application:environment"
+          name      = "NODE_ENV"
+          value     = "production"
         }
       ]
     }
   }
-
-  tags = {
-    Application = "frontend"
-    Tier        = "web"
-  }
 }
+
