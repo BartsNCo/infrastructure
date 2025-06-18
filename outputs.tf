@@ -1,19 +1,19 @@
 # Database outputs
-output "mongodb_endpoint" {
-  description = "DocumentDB cluster endpoint"
-  value       = module.database.mongodb_endpoint
-}
-
-output "mongodb_port" {
-  description = "DocumentDB cluster port"
-  value       = module.database.mongodb_port
-}
-
-output "mongodb_connection_string" {
-  description = "MongoDB connection string"
-  value       = module.database.mongodb_connection_string
-  sensitive   = true
-}
+# output "mongodb_endpoint" {
+#  description = "DocumentDB cluster endpoint"
+#  value       = module.database.mongodb_endpoint
+# }
+#
+# output "mongodb_port" {
+#  description = "DocumentDB cluster port"
+#  value       = module.database.mongodb_port
+# }
+#
+# output "mongodb_connection_string" {
+#  description = "MongoDB connection string"
+#  value       = module.database.mongodb_connection_string
+#  sensitive   = true
+# }
 
 # S3 Unity outputs
 output "s3unity_bucket_name" {
@@ -32,12 +32,12 @@ output "s3unity_website_endpoint" {
 }
 
 # CloudFront outputs
-output "cloudfront_distribution_id" {
+output "s3_unity_cloudfront_distribution_id" {
   description = "CloudFront distribution ID"
   value       = module.s3unity.cloudfront_distribution_id
 }
 
-output "cloudfront_url" {
+output "s3_unity_cloudfront_url" {
   description = "CloudFront distribution URL"
   value       = module.s3unity.cloudfront_url
 }
