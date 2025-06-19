@@ -10,3 +10,13 @@ data "aws_subnets" "default" {
     values = [data.aws_vpc.default.id]
   }
 }
+# Remote state data source for viewer-app-database
+data "terraform_remote_state" "viewer_app_database" {
+  backend   = "s3"
+  workspace = terraform.workspace
+  config = {
+    bucket = "barts-terraform-state-1750103475"
+    key    = "viewer-app-database/terraform.tfstate"
+    region = "us-east-1"
+  }
+}

@@ -8,10 +8,9 @@ output "mongodb_port" {
   value       = aws_docdb_cluster.mongodb.port
 }
 
-output "mongodb_connection_string" {
-  description = "MongoDB connection string"
-  value       = "mongodb://${var.mongodb_username}:${var.mongodb_password}@${aws_docdb_cluster.mongodb.endpoint}:${aws_docdb_cluster.mongodb.port}/?ssl=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false"
-  sensitive   = true
+output "mongodb_connection_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing MongoDB connection string"
+  value       = aws_secretsmanager_secret.mongodb_connection.arn
 }
 
 output "security_group_id" {
