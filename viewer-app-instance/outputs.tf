@@ -40,3 +40,14 @@ output "ecs_cluster_name" {
   description = "ECS cluster name"
   value       = aws_ecs_cluster.main.name
 }
+
+# Backend service outputs
+output "backend_service_url" {
+  description = "Backend service URL"
+  value       = module.backend.service_url
+}
+
+output "backend_service_dns" {
+  description = "Backend service DNS name"
+  value       = module.backend.service_dns
+}

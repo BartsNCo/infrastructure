@@ -1,5 +1,36 @@
 # Output values for ecs-service module
 
+# Load Balancer outputs
+output "service_dns" {
+  description = "The DNS name of the load balancer"
+  value       = aws_lb.main.dns_name
+}
+
+output "service_url" {
+  description = "The full URL of the service"
+  value       = "http://${aws_lb.main.dns_name}"
+}
+
+output "load_balancer_arn" {
+  description = "The ARN of the load balancer"
+  value       = aws_lb.main.arn
+}
+
+output "load_balancer_zone_id" {
+  description = "The zone ID of the load balancer"
+  value       = aws_lb.main.zone_id
+}
+
+output "target_group_arn" {
+  description = "The ARN of the target group"
+  value       = aws_lb_target_group.main.arn
+}
+
+output "alb_security_group_id" {
+  description = "The ID of the ALB security group"
+  value       = aws_security_group.alb.id
+}
+
 # ECR repository URI
 output "ecr_repository_uri" {
   description = "The private URI of the ECR repository"

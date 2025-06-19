@@ -45,10 +45,10 @@ resource "aws_security_group" "ecs_service" {
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port   = var.container_port
-    to_port     = var.container_port
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port       = var.container_port
+    to_port         = var.container_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
 
   egress {
@@ -64,6 +64,97 @@ resource "aws_security_group" "ecs_service" {
     Project     = var.project_name
     Application = var.application_name
   })
+}
+
+# Application Load Balancer
+resource "aws_lb" "main" {
+  name               = "${var.project_name}-${var.application_name}-${var.environment}"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = var.subnet_ids
+
+  enable_deletion_protection = false
+
+  tags = merge(var.tags, {
+    Environment = var.environment
+    Project     = var.project_name
+    Application = var.application_name
+  })
+}
+
+# Security Group for ALB
+resource "aws_security_group" "alb" {
+  name_prefix = "${var.project_name}-${var.application_name}-alb-${var.environment}-"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.tags, {
+    Name        = "${var.project_name}_${var.application_name}_alb_sg_${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+    Application = var.application_name
+  })
+}
+
+# Target Group
+resource "aws_lb_target_group" "main" {
+  name     = "${var.project_name}-${var.application_name}-${var.environment}"
+  port     = var.container_port
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
+
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    interval            = 30
+    path                = var.health_check_path
+    matcher             = "200"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+  }
+
+  tags = merge(var.tags, {
+    Environment = var.environment
+    Project     = var.project_name
+    Application = var.application_name
+  })
+}
+
+# ALB Listener
+resource "aws_lb_listener" "main" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.main.arn
+  }
 }
 
 # ECS Task Execution Role
@@ -205,9 +296,17 @@ resource "aws_ecs_service" "main" {
     assign_public_ip = true
   }
 
+  load_balancer {
+    target_group_arn = aws_lb_target_group.main.arn
+    container_name   = var.container_definitions.name
+    container_port   = var.container_port
+  }
+
   lifecycle {
     ignore_changes = [task_definition]
   }
+
+  depends_on = [aws_lb_listener.main]
 
   tags = merge(var.tags, {
     Environment = var.environment

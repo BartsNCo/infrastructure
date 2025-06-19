@@ -92,6 +92,6 @@ resource "aws_secretsmanager_secret" "mongodb_connection" {
 resource "aws_secretsmanager_secret_version" "mongodb_connection" {
   secret_id = aws_secretsmanager_secret.mongodb_connection.id
   secret_string = jsonencode({
-    MONGODB_URI = "mongodb://${urlencode(var.mongodb_username)}:${urlencode(var.mongodb_password)}@${aws_docdb_cluster.mongodb.endpoint}:${aws_docdb_cluster.mongodb.port}/?tls=true&tlsInsecure=true&replicaSet=rs0&retryWrites=false"
+    MONGODB_URI = "mongodb://${urlencode(var.mongodb_username)}:${urlencode(var.mongodb_password)}@${aws_docdb_cluster.mongodb.endpoint}:${aws_docdb_cluster.mongodb.port}/?tls=true&tlsCAFile=/app/certs/global-bundle.pem&replicaSet=rs0&retryWrites=false"
   })
 }
