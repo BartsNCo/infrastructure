@@ -31,7 +31,7 @@ output "dev_subdomain_fqdn" {
 
 output "dns_configuration_instructions" {
   description = "Instruções para configurar o domínio externo"
-  value = <<-EOT
+  value       = <<-EOT
     Para configurar dev.${var.domain_name} para apontar para AWS:
     
     1. Faça login no seu registrador de domínio (onde você comprou ${var.domain_name})

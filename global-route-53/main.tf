@@ -13,12 +13,12 @@ resource "aws_route53_record" "dev_root" {
   zone_id = aws_route53_zone.dev_subdomain.zone_id
   name    = "dev.${var.domain_name}"
   type    = "A"
-  
+
   # Using alias to point to CloudFront or Load Balancer
   # This will need to be updated with actual target when services are deployed
   alias {
-    name                   = "example-placeholder.cloudfront.net"  # Replace with actual CloudFront domain
-    zone_id                = "Z2FDTNDATAQYW2"  # CloudFront hosted zone ID
+    name                   = "example-placeholder.cloudfront.net" # Replace with actual CloudFront domain
+    zone_id                = "Z2FDTNDATAQYW2"                     # CloudFront hosted zone ID
     evaluate_target_health = false
   }
 }
