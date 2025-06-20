@@ -82,6 +82,12 @@ variable "health_check_path" {
   default     = "/health"
 }
 
+variable "s3_bucket_names" {
+  description = "List of S3 bucket names that the ECS service needs access to"
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

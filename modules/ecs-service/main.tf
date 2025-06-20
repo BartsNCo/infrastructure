@@ -1,3 +1,14 @@
+locals {
+  sertice_name = "${var.project_name}_${var.application_name}_${var.environment}"
+  cluster_name = split("/", var.cluster_id)[1]
+  tags = merge(var.tags, {
+    Environment = var.environment
+    Project     = var.project_name
+    Application = var.application_name
+    Cluster     = local.cluster_name
+    Service     = local.sertice_name
+  })
+}
 # Main resources for ecs-service module
 
 # ECR Repository for the container
@@ -10,11 +21,7 @@ resource "aws_ecr_repository" "main" {
     scan_on_push = true
   }
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # ECR Lifecycle Policy
@@ -58,12 +65,7 @@ resource "aws_security_group" "ecs_service" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}_${var.application_name}_sg_${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # Application Load Balancer
@@ -76,11 +78,7 @@ resource "aws_lb" "main" {
 
   enable_deletion_protection = false
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # Security Group for ALB
@@ -109,12 +107,7 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, {
-    Name        = "${var.project_name}_${var.application_name}_alb_sg_${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # Target Group
@@ -138,11 +131,7 @@ resource "aws_lb_target_group" "main" {
     protocol            = "HTTP"
   }
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # ALB Listener
@@ -155,6 +144,7 @@ resource "aws_lb_listener" "main" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.main.arn
   }
+  tags = local.tags
 }
 
 # ECS Task Execution Role
@@ -174,11 +164,7 @@ resource "aws_iam_role" "ecs_execution_role" {
     ]
   })
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # Attach ECS Task Execution Role Policy
@@ -213,6 +199,54 @@ resource "aws_iam_role_policy" "secrets_policy" {
   })
 }
 
+# ECS Task Role
+resource "aws_iam_role" "ecs_task_role" {
+  name = "${var.project_name}_${var.application_name}_task_role_${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+# S3 access policy for task role
+resource "aws_iam_role_policy" "s3_access_policy" {
+  count = length(var.s3_bucket_names) > 0 ? 1 : 0
+  name  = "${var.project_name}_${var.application_name}_s3_policy_${var.environment}"
+  role  = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ],
+        Resource = flatten([
+          for bucket in var.s3_bucket_names : [
+            "arn:aws:s3:::${bucket}",
+            "arn:aws:s3:::${bucket}/*"
+          ]
+        ])
+      }
+    ]
+  })
+}
+
 # ECS Task Definition
 resource "aws_ecs_task_definition" "main" {
   family                   = "${var.project_name}_${var.application_name}_${var.environment}"
@@ -221,6 +255,7 @@ resource "aws_ecs_task_definition" "main" {
   cpu                      = var.cpu
   memory                   = var.memory
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
@@ -263,11 +298,7 @@ resource "aws_ecs_task_definition" "main" {
     ignore_changes = [container_definitions]
   }
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # CloudWatch Log Group
@@ -275,16 +306,12 @@ resource "aws_cloudwatch_log_group" "main" {
   name              = "/ecs/${var.project_name}_${var.application_name}_${var.environment}"
   retention_in_days = 7
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 
 # ECS Service
 resource "aws_ecs_service" "main" {
-  name            = "${var.project_name}_${var.application_name}_${var.environment}"
+  name            = local.sertice_name
   cluster         = var.cluster_id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.desired_count
@@ -308,10 +335,6 @@ resource "aws_ecs_service" "main" {
 
   depends_on = [aws_lb_listener.main]
 
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project_name
-    Application = var.application_name
-  })
+  tags = local.tags
 }
 

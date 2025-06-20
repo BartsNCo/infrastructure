@@ -48,6 +48,11 @@ output "ecs_service_name" {
   value       = aws_ecs_service.main.name
 }
 
+output "ecs_cluster_name" {
+  description = "The name of the ECS cluster"
+  value       = var.cluster_id
+}
+
 output "ecs_task_definition_arn" {
   description = "The ARN of the ECS task definition"
   value       = aws_ecs_task_definition.main.arn

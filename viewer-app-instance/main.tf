@@ -61,15 +61,10 @@ module "backend" {
     ]
   }
 
+  s3_bucket_names   = [module.s3unity.bucket_name]
   container_port    = 3000
   cpu               = 1024
   memory            = 2048
   desired_count     = 1
   health_check_path = "/health"
-
-  tags = {
-    Environment = terraform.workspace
-    Project     = var.project_name
-    Application = "viewer-backend"
-  }
 }
