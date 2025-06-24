@@ -70,7 +70,7 @@ resource "aws_security_group" "ecs_service" {
 
 # Application Load Balancer
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-${var.application_name}-${var.environment}"
+  name               = "${var.application_name}-${var.environment}"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
@@ -112,7 +112,7 @@ resource "aws_security_group" "alb" {
 
 # Target Group
 resource "aws_lb_target_group" "main" {
-  name     = "${var.project_name}-${var.application_name}-${var.environment}"
+  name     = "${var.application_name}-${var.environment}"
   port     = var.container_port
   protocol = "HTTP"
   vpc_id   = var.vpc_id
@@ -134,11 +134,33 @@ resource "aws_lb_target_group" "main" {
   tags = local.tags
 }
 
-# ALB Listener
-resource "aws_lb_listener" "main" {
+# ALB HTTP Listener (redirects to HTTPS)
+resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+
+  tags = local.tags
+}
+
+# ALB HTTPS Listener
+resource "aws_lb_listener" "https" {
+  count             = var.certificate_arn != "" ? 1 : 0
+  load_balancer_arn = aws_lb.main.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
+  certificate_arn   = var.certificate_arn
 
   default_action {
     type             = "forward"
@@ -333,8 +355,23 @@ resource "aws_ecs_service" "main" {
     ignore_changes = [task_definition]
   }
 
-  depends_on = [aws_lb_listener.main]
+  depends_on = [aws_lb_listener.http, aws_lb_listener.https]
 
   tags = local.tags
+}
+
+# Route53 DNS records for subdomains
+resource "aws_route53_record" "subdomain" {
+  for_each = toset(var.subdomains)
+
+  zone_id = var.route53_zone_id
+  name    = each.value
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
 }
 

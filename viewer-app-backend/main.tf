@@ -1,24 +1,9 @@
 
-# Local values from viewer-app-database remote state
+# Local values from remote states
 locals {
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
-}
-
-
-# ECS Cluster
-resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}_viewer_cluster_${terraform.workspace}"
-
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
-
-  tags = {
-    Environment = terraform.workspace
-    Project     = var.project_name
-    Application = "viewer-app"
-  }
+  viewer_app_ecs_cluster_id                         = data.terraform_remote_state.viewer_app_ecs_cluster.outputs.cluster_id
+  route53_zone_id                                   = data.terraform_remote_state.global_route53.outputs.hosted_zone_id[terraform.workspace]
 }
 
 # S3 Unity module
@@ -37,9 +22,13 @@ module "backend" {
   project_name     = var.project_name
   environment      = terraform.workspace
   application_name = "viewer-backend"
-  cluster_id       = aws_ecs_cluster.main.id
+  cluster_id       = local.viewer_app_ecs_cluster_id
   vpc_id           = data.aws_vpc.default.id
   subnet_ids       = data.aws_subnets.default.ids
+  route53_zone_id  = local.route53_zone_id
+  subdomains       = ["api"]
+  certificate_arn  = data.terraform_remote_state.global_route53.outputs.certificate_arn[terraform.workspace]
+
 
   container_definitions = {
     name = "backend"

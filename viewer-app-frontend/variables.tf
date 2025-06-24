@@ -5,15 +5,15 @@ variable "aws_region" {
 }
 
 variable "aws_profile" {
-  description = "AWS profile to use"
+  description = "AWS profile"
   type        = string
   default     = "barts-admin"
 }
 
-variable "domain_name" {
-  description = "The domain name for the hosted zone"
+variable "environment" {
+  description = "Environment name"
   type        = string
-  default     = "bartsnco.com.br"
+  default     = "dev"
 }
 
 variable "project_name" {
@@ -22,6 +22,8 @@ variable "project_name" {
   default     = "barts"
 }
 
-variable "subdomain" {
-  type = list(map(string))
+variable "cluster_name" {
+  description = "Cluster name"
+  type        = string
+  default     = ""
 }

@@ -93,3 +93,21 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "route53_zone_id" {
+  description = "Route53 hosted zone ID for DNS records"
+  type        = string
+  default     = ""
+}
+
+variable "subdomains" {
+  description = "List of subdomains for the service (e.g., ['api.dev', 'backend.dev'])"
+  type        = list(string)
+  default     = []
+}
+
+variable "certificate_arn" {
+  description = "ARN of the SSL certificate for HTTPS"
+  type        = string
+  default     = ""
+}
