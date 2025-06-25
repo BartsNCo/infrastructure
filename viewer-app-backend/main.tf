@@ -58,7 +58,7 @@ module "backend" {
     ]
   }
 
-  s3_bucket_names   = [module.s3unity.bucket_name]
+  s3_bucket_names   = [module.s3unity.bucket_name, "bartsnco-main"]
   container_port    = 3000
   cpu               = 1024
   memory            = 2048
