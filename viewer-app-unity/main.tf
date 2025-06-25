@@ -4,8 +4,8 @@ locals {
   certificate_arn = data.terraform_remote_state.global_route53.outputs.certificate_arn[terraform.workspace]
   bucket_name     = "${var.project_name}-unity-webgl-${terraform.workspace}"
   # Map workspace to subdomain - development workspace uses dev subdomain
-  env_subdomain   = terraform.workspace == "development" ? "dev" : terraform.workspace
-  subdomain       = "vr.${local.env_subdomain}.bartsnco.com.br"
+  env_subdomain = terraform.workspace == "development" ? "dev" : terraform.workspace
+  subdomain     = "vr.${local.env_subdomain}.bartsnco.com.br"
 }
 
 # S3 bucket for Unity WebGL content
