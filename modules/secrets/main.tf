@@ -148,7 +148,7 @@ resource "aws_secretsmanager_secret_rotation" "this" {
   rotation_lambda_arn = var.rotation_lambda_arn
 }
 
-# Attach read policy to groups
+# Attach read-only policy to groups
 resource "aws_iam_group_policy_attachment" "read_groups" {
   for_each = toset(var.read_groups)
 
@@ -156,15 +156,8 @@ resource "aws_iam_group_policy_attachment" "read_groups" {
   policy_arn = aws_iam_policy.secret_read.arn
 }
 
-# Attach write policy to groups
-resource "aws_iam_group_policy_attachment" "write_groups" {
-  for_each = toset(var.write_groups)
 
-  group      = each.value
-  policy_arn = aws_iam_policy.secret_write.arn
-}
-
-# Attach read policy to users
+# Attach read-only policy to users
 resource "aws_iam_user_policy_attachment" "read_users" {
   for_each = toset(var.read_users)
 
@@ -172,13 +165,6 @@ resource "aws_iam_user_policy_attachment" "read_users" {
   policy_arn = aws_iam_policy.secret_read.arn
 }
 
-# Attach write policy to users
-resource "aws_iam_user_policy_attachment" "write_users" {
-  for_each = toset(var.write_users)
-
-  user       = each.value
-  policy_arn = aws_iam_policy.secret_write.arn
-}
 
 # Attach both read and write policies to readwrite groups
 resource "aws_iam_group_policy_attachment" "readwrite_groups_read" {

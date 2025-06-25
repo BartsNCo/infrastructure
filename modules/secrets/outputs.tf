@@ -80,31 +80,21 @@ output "access_policy_document" {
 }
 
 output "attached_read_groups" {
-  description = "List of groups with read access to the secret"
+  description = "List of groups with read-only access to the secret"
   value       = var.read_groups
 }
 
-output "attached_write_groups" {
-  description = "List of groups with write access to the secret"
-  value       = var.write_groups
-}
-
 output "attached_read_users" {
-  description = "List of users with read access to the secret"
+  description = "List of users with read-only access to the secret"
   value       = var.read_users
 }
 
-output "attached_write_users" {
-  description = "List of users with write access to the secret"
-  value       = var.write_users
-}
-
 output "attached_readwrite_groups" {
-  description = "List of groups with both read and write access to the secret"
+  description = "List of groups with read-write access to the secret"
   value       = var.readwrite_groups
 }
 
 output "attached_readwrite_users" {
-  description = "List of users with both read and write access to the secret"
+  description = "List of users with read-write access to the secret"
   value       = var.readwrite_users
 }

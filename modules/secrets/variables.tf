@@ -85,37 +85,25 @@ variable "tags" {
 }
 
 variable "read_groups" {
-  description = "List of IAM groups to attach the read policy to"
-  type        = list(string)
-  default     = []
-}
-
-variable "write_groups" {
-  description = "List of IAM groups to attach the write policy to"
-  type        = list(string)
-  default     = []
-}
-
-variable "read_users" {
-  description = "List of IAM users to attach the read policy to"
-  type        = list(string)
-  default     = []
-}
-
-variable "write_users" {
-  description = "List of IAM users to attach the write policy to"
+  description = "List of IAM groups to attach the read-only policy to"
   type        = list(string)
   default     = []
 }
 
 variable "readwrite_groups" {
-  description = "List of IAM groups to attach both read and write policies to"
+  description = "List of IAM groups to attach the read-write policy to"
+  type        = list(string)
+  default     = []
+}
+
+variable "read_users" {
+  description = "List of IAM users to attach the read-only policy to"
   type        = list(string)
   default     = []
 }
 
 variable "readwrite_users" {
-  description = "List of IAM users to attach both read and write policies to"
+  description = "List of IAM users to attach the read-write policy to"
   type        = list(string)
   default     = []
 }
