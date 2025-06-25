@@ -40,6 +40,14 @@ module "backend" {
       {
         name  = "PORT"
         value = "3000"
+      },
+      {
+        name  = "AWS_REGION"
+        value = var.aws_region
+      },
+      {
+        name  = "S3_BUCKET_NAME"
+        value = module.s3unity.bucket_name
       }
     ]
     secrets = [
