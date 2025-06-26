@@ -45,7 +45,16 @@ resource "aws_iam_policy" "secret_read" {
         Action = [
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret",
-          "secretsmanager:ListSecretVersionIds"
+          "secretsmanager:ListSecretVersionIds",
+          "secretsmanager:GetResourcePolicy"
+        ]
+        Resource = aws_secretsmanager_secret.this.arn
+      },
+      {
+        Sid    = "ListSecrets"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:ListSecrets"
         ]
         Resource = aws_secretsmanager_secret.this.arn
       },
