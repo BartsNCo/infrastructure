@@ -4,6 +4,11 @@ locals {
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
   viewer_app_ecs_cluster_id                         = data.terraform_remote_state.viewer_app_ecs_cluster.outputs.cluster_id
   route53_zone_id                                   = data.terraform_remote_state.global_route53.outputs.hosted_zone_id[terraform.workspace]
+  # Secrets outputs
+  secret_arns              = data.terraform_remote_state.viewer_app_secrets.outputs.secret_arns
+  api_keys_secret_arn      = try(local.secret_arns["api-keys"], null)
+  jwt_secrets_arn          = try(local.secret_arns["jwt-secrets"], null)
+  google_signin_secret_arn = try(local.secret_arns["google-signin"], null)
 }
 
 # S3 Unity module
@@ -54,6 +59,34 @@ module "backend" {
       {
         secret_manager_arn = local.viewer_app_database_mongodb_connection_secret_arn
         key                = "MONGODB_URI"
+      },
+      {
+        secret_manager_arn = local.jwt_secrets_arn
+        key                = "JWT_SECRET"
+      },
+      {
+        secret_manager_arn = local.google_signin_secret_arn
+        key                = "GOOGLE_CLIENT_ID"
+      },
+      {
+        secret_manager_arn = local.google_signin_secret_arn
+        key                = "GOOGLE_CLIENT_SECRET"
+      },
+      {
+        secret_manager_arn = local.google_signin_secret_arn
+        key                = "GOOGLE_CALLBACK_URL"
+      },
+      {
+        secret_manager_arn = local.google_signin_secret_arn
+        key                = "CLIENT_REDIRECT_URL"
+      },
+      {
+        secret_manager_arn = local.google_signin_secret_arn
+        key                = "CLIENT_REDIRECT_FAILURE"
+      },
+      {
+        secret_manager_arn = local.google_signin_secret_arn
+        key                = "AUTH_DOMAIN"
       }
     ]
   }

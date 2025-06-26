@@ -215,6 +215,7 @@ resource "aws_iam_role_policy" "secrets_policy" {
         ],
         Resource = [
           for secret in var.container_definitions.secrets : secret.secret_manager_arn
+          if secret.secret_manager_arn != null
         ]
       }
     ]
@@ -300,7 +301,7 @@ resource "aws_ecs_task_definition" "main" {
         for secret in var.container_definitions.secrets : {
           valueFrom = "${secret.secret_manager_arn}:${secret.key}::"
           name      = secret.key
-        }
+        } if secret.secret_manager_arn != null
       ]
 
       logConfiguration = {

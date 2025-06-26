@@ -42,3 +42,14 @@ data "terraform_remote_state" "global_route53" {
     region = "us-east-1"
   }
 }
+
+# Remote state data source for viewer-app-secrets
+data "terraform_remote_state" "viewer_app_secrets" {
+  backend   = "s3"
+  workspace = terraform.workspace
+  config = {
+    bucket = "barts-terraform-state-1750103475"
+    key    = "infrastructure/viewer-app/secrets/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
