@@ -63,14 +63,41 @@ resource "aws_s3_bucket_policy" "unity_webgl" {
   })
 }
 
-# Response headers policy for Unity WebGL MIME types
+# Response headers policy for Unity WebGL with CORS support
 resource "aws_cloudfront_response_headers_policy" "unity_webgl" {
   name = "${var.project_name}-unity-webgl-${terraform.workspace}"
 
+  cors_config {
+    access_control_allow_credentials = false
+    access_control_max_age_sec       = 600
+    origin_override                  = true
+
+    access_control_allow_headers {
+      items = ["*"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD", "OPTIONS"]
+    }
+
+    access_control_allow_origins {
+      items = ["*"]
+    }
+
+    access_control_expose_headers {
+      items = ["Content-Length", "Content-Type", "Content-Encoding"]
+    }
+  }
+
   custom_headers_config {
     items {
-      header   = "Content-Type"
-      value    = "application/javascript"
+      header   = "Cross-Origin-Embedder-Policy"
+      value    = "require-corp"
+      override = false
+    }
+    items {
+      header   = "Cross-Origin-Opener-Policy"
+      value    = "same-origin"
       override = false
     }
   }
@@ -96,11 +123,12 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Default cache behavior for HTML files
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress               = true
-    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods                = ["GET", "HEAD", "OPTIONS"]
+    cached_methods                 = ["GET", "HEAD"]
+    target_origin_id               = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                       = true
+    viewer_protocol_policy         = "redirect-to-https"
+    response_headers_policy_id     = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
@@ -116,12 +144,13 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Cache behavior for JavaScript files
   ordered_cache_behavior {
-    path_pattern           = "*.js"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress               = true
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "*.js"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = true
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
@@ -138,12 +167,13 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Cache behavior for CSS files
   ordered_cache_behavior {
-    path_pattern           = "*.css"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress               = true
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "*.css"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = true
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
@@ -160,12 +190,13 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Cache behavior for Unity WebGL data files (.data, .wasm, .unityweb)
   ordered_cache_behavior {
-    path_pattern           = "*.data"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress               = false
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "*.data"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = false
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
@@ -182,12 +213,13 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Cache behavior for WASM files
   ordered_cache_behavior {
-    path_pattern           = "*.wasm"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress               = false
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "*.wasm"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = false
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
@@ -204,12 +236,13 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Cache behavior for Unity asset bundles
   ordered_cache_behavior {
-    path_pattern           = "*.unityweb"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress               = false
-    viewer_protocol_policy = "redirect-to-https"
+    path_pattern               = "*.unityweb"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = false
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
@@ -222,6 +255,75 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
     min_ttl     = 0
     default_ttl = 86400
     max_ttl     = 31536000
+  }
+
+  # Cache behavior for Addressable asset bundles
+  ordered_cache_behavior {
+    path_pattern               = "*.bundle"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = false
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Content-Type", "Content-Encoding"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 86400
+    max_ttl     = 31536000
+  }
+
+  # Cache behavior for Addressable catalog files
+  ordered_cache_behavior {
+    path_pattern               = "*.hash"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = true
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Content-Type"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 300
+    max_ttl     = 3600
+  }
+
+  # Cache behavior for Addressable catalog JSON files
+  ordered_cache_behavior {
+    path_pattern               = "catalog_*.json"
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = true
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Content-Type"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 300
+    max_ttl     = 3600
   }
 
   # Remove the custom error responses that redirect everything to index.html
