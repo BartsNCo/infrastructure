@@ -123,12 +123,12 @@ resource "aws_cloudfront_distribution" "unity_webgl" {
 
   # Default cache behavior for HTML files
   default_cache_behavior {
-    allowed_methods                = ["GET", "HEAD", "OPTIONS"]
-    cached_methods                 = ["GET", "HEAD"]
-    target_origin_id               = "S3-${aws_s3_bucket.unity_webgl.bucket}"
-    compress                       = true
-    viewer_protocol_policy         = "redirect-to-https"
-    response_headers_policy_id     = aws_cloudfront_response_headers_policy.unity_webgl.id
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "S3-${aws_s3_bucket.unity_webgl.bucket}"
+    compress                   = true
+    viewer_protocol_policy     = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.unity_webgl.id
 
     forwarded_values {
       query_string = false
