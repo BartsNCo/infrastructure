@@ -1,6 +1,6 @@
 # Use the secrets module to create secrets with access policies
 module "app_secrets" {
-  source   = "../modules/secrets"
+  source   = "../../../modules/secrets"
   for_each = var.secrets
 
   secret_name      = "${var.project_name}-${each.key}-${terraform.workspace}"

@@ -5,7 +5,7 @@ locals {
 }
 
 module "frontend" {
-  source = "../modules/ecs-service"
+  source = "../../../modules/ecs-service"
 
   project_name     = var.project_name
   environment      = terraform.workspace

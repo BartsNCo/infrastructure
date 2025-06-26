@@ -8,7 +8,7 @@ locals {
 
 # S3 Unity module
 module "s3unity" {
-  source = "../modules/s3unity"
+  source = "../../../modules/s3unity"
 
   project_name           = var.project_name
   environment            = terraform.workspace
@@ -17,7 +17,7 @@ module "s3unity" {
 
 
 module "backend" {
-  source = "../modules/ecs-service"
+  source = "../../../modules/ecs-service"
 
   project_name     = var.project_name
   environment      = terraform.workspace

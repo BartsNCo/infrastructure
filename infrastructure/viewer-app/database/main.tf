@@ -1,6 +1,6 @@
 # Database module
 module "database" {
-  source = "../modules/database"
+  source = "../../../modules/database"
 
   project_name     = var.project_name
   environment      = terraform.workspace

@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket = "barts-terraform-state-1750103475"
-    key    = "global-route-53/terraform.tfstate"
+    key    = "infrastructure/viewer-app/unity-assets/terraform.tfstate"
     region = "us-east-1"
   }
 }

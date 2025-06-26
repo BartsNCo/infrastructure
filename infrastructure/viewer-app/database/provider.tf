@@ -9,7 +9,7 @@ terraform {
 
   backend "s3" {
     bucket = "barts-terraform-state-1750103475"
-    key    = "viewer-app-environment-secrets/terraform.tfstate"
+    key    = "infrastructure/viewer-app/database/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -18,3 +18,4 @@ provider "aws" {
   region  = var.aws_region
   profile = var.aws_profile
 }
+

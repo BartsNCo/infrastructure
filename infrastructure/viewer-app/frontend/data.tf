@@ -16,7 +16,7 @@ data "terraform_remote_state" "viewer_app_database" {
   workspace = terraform.workspace
   config = {
     bucket = "barts-terraform-state-1750103475"
-    key    = "viewer-app-database/terraform.tfstate"
+    key    = "infrastructure/viewer-app/database/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -27,7 +27,7 @@ data "terraform_remote_state" "viewer_app_ecs_cluster" {
   workspace = terraform.workspace
   config = {
     bucket = "barts-terraform-state-1750103475"
-    key    = "viewer-app-ecs-cluster/terraform.tfstate"
+    key    = "infrastructure/viewer-app/ecs-cluster/terraform.tfstate"
     region = "us-east-1"
   }
 }
@@ -38,7 +38,7 @@ data "terraform_remote_state" "global_route53" {
   workspace = "global"
   config = {
     bucket = "barts-terraform-state-1750103475"
-    key    = "global-route-53/terraform.tfstate"
+    key    = "infrastructure/route-53/terraform.tfstate"
     region = "us-east-1"
   }
 }

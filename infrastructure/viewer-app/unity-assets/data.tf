@@ -4,7 +4,7 @@ data "terraform_remote_state" "global_route53" {
   workspace = "global"
   config = {
     bucket = "barts-terraform-state-1750103475"
-    key    = "global-route-53/terraform.tfstate"
+    key    = "infrastructure/route-53/terraform.tfstate"
     region = "us-east-1"
   }
 }

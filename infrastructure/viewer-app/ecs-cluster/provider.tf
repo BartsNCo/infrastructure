@@ -11,7 +11,7 @@ terraform {
 
   backend "s3" {
     bucket  = "barts-terraform-state-1750103475"
-    key     = "viewer-app-ecs-cluster/terraform.tfstate"
+    key     = "infrastructure/viewer-app/ecs-cluster/terraform.tfstate"
     region  = "us-east-1"
     encrypt = true
   }
