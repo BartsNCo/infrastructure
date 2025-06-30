@@ -28,3 +28,9 @@ variable "mongodb_password" {
   type        = string
   sensitive   = true
 }
+
+variable "public_key" {
+  description = "SSH public key for jump server access"
+  type        = string
+  default     = ""
+}

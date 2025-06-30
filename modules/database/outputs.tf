@@ -27,3 +27,18 @@ output "cluster_identifier" {
   description = "DocumentDB cluster identifier"
   value       = aws_docdb_cluster.mongodb.cluster_identifier
 }
+
+output "jumpserver_public_ip" {
+  description = "Public IP of the jump server"
+  value       = var.create_jumpserver ? aws_instance.jumpserver[0].public_ip : null
+}
+
+output "jumpserver_instance_id" {
+  description = "Instance ID of the jump server"
+  value       = var.create_jumpserver ? aws_instance.jumpserver[0].id : null
+}
+
+output "ssh_tunnel_command" {
+  description = "SSH tunnel command to connect to DocumentDB"
+  value       = var.create_jumpserver ? "ssh -L 27017:${aws_docdb_cluster.mongodb.endpoint}:27017 ec2-user@${aws_instance.jumpserver[0].public_ip}" : null
+}

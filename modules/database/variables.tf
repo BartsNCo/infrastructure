@@ -59,3 +59,21 @@ variable "skip_final_snapshot" {
   type        = bool
   default     = true
 }
+
+variable "create_jumpserver" {
+  description = "Whether to create a jump server for SSH tunneling to the database"
+  type        = bool
+  default     = false
+}
+
+variable "jumpserver_public_key" {
+  description = "SSH public key that can access the jump server"
+  type        = string
+  default     = ""
+}
+
+variable "jumpserver_instance_type" {
+  description = "EC2 instance type for the jump server"
+  type        = string
+  default     = "t3.micro"
+}

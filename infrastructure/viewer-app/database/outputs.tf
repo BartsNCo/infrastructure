@@ -14,3 +14,18 @@ output "mongodb_connection_secret_arn" {
   value       = module.database.mongodb_connection_secret_arn
 }
 
+output "jumpserver_public_ip" {
+  description = "Public IP of the jump server"
+  value       = module.database.jumpserver_public_ip
+}
+
+output "jumpserver_instance_id" {
+  description = "Instance ID of the jump server"
+  value       = module.database.jumpserver_instance_id
+}
+
+output "ssh_tunnel_command" {
+  description = "SSH tunnel command to connect to DocumentDB"
+  value       = module.database.ssh_tunnel_command
+}
+

@@ -9,5 +9,8 @@ module "database" {
   vpc_id           = data.aws_vpc.default.id
   subnet_ids       = data.aws_subnets.default.ids
   instance_class   = "db.t3.medium" # Cheapest available instance class
+
+  create_jumpserver = true
+  jumpserver_public_key = var.public_key
 }
 

@@ -19,6 +19,8 @@ The database configuration provides:
 - **Subnet Group**: VPC subnets for database deployment
 - **Security Groups**: Network access control
 - **Secret Manager Secret**: Encrypted connection string storage
+- **Jump Server**: EC2 instance for SSH tunnel access (t3.micro)
+- **Key Pair**: AWS key pair for jump server SSH access
 
 ## Configuration
 
@@ -52,11 +54,17 @@ terraform init
 # Select workspace
 terraform workspace select development
 
-# Plan deployment (provide credentials)
-terraform plan -var="mongodb_username=bart_root" -var="mongodb_password=YOUR_SECURE_PASSWORD"
+# Plan deployment (provide credentials and SSH key)
+terraform plan -var="mongodb_username=bart_root" -var="mongodb_password=YOUR_SECURE_PASSWORD" -var="public_key=YOUR_SSH_PUBLIC_KEY"
 
 # Apply changes
-terraform apply -var="mongodb_username=bart_root" -var="mongodb_password=YOUR_SECURE_PASSWORD"
+terraform apply -var="mongodb_username=bart_root" -var="mongodb_password=YOUR_SECURE_PASSWORD" -var="public_key=YOUR_SSH_PUBLIC_KEY"
+
+# Or use environment variables
+export TF_VAR_mongodb_username="bart_root"
+export TF_VAR_mongodb_password="YOUR_SECURE_PASSWORD"
+export TF_VAR_public_key="ssh-ed25519 AAAAC3... your-email@example.com"
+terraform apply
 ```
 
 ### Required Variables
@@ -66,6 +74,7 @@ terraform apply -var="mongodb_username=bart_root" -var="mongodb_password=YOUR_SE
 | `mongodb_username` | Database administrator username | `string` | No |
 | `mongodb_password` | Database administrator password | `string` | Yes |
 | `project_name` | Project identifier | `string` | No |
+| `public_key` | SSH public key for jump server access | `string` | No |
 
 ## Connection Details
 
@@ -162,9 +171,11 @@ resource "aws_docdb_cluster_instance" "cluster_instances" {
 | Output | Description |
 |--------|-------------|
 | `mongodb_connection_secret_arn` | ARN of the connection string secret |
-| `cluster_endpoint` | DocumentDB cluster writer endpoint |
-| `cluster_reader_endpoint` | DocumentDB cluster reader endpoint |
-| `cluster_identifier` | DocumentDB cluster identifier |
+| `mongodb_endpoint` | DocumentDB cluster endpoint |
+| `mongodb_port` | DocumentDB cluster port |
+| `jumpserver_public_ip` | Public IP of the jump server |
+| `jumpserver_instance_id` | Instance ID of the jump server |
+| `ssh_tunnel_command` | SSH tunnel command to connect to DocumentDB |
 
 ## Integration with Other Components
 
@@ -190,7 +201,68 @@ locals {
 
 ## Database Management
 
-### Connection Testing
+### Remote Connection via Jump Server
+
+The database includes a jump server for secure remote access via SSH tunnel.
+
+#### 1. Create SSH Tunnel
+
+```bash
+# Get the jump server IP and DocumentDB endpoint
+terraform output jumpserver_public_ip
+terraform output mongodb_endpoint
+
+# Create SSH tunnel (replace with your actual values)
+ssh -i ~/.ssh/your_private_key -L 27017:<documentdb-endpoint>:27017 ec2-user@<jumpserver-ip> -N -f
+
+# Example:
+ssh -i ~/.ssh/jumpserver_key -L 27017:barts-mongodb-development.cluster-xxxxx.us-east-1.docdb.amazonaws.com:27017 ec2-user@34.227.117.18 -N -f
+
+# Or use the provided command from Terraform output
+$(terraform output -raw ssh_tunnel_command) -i ~/.ssh/your_private_key -N -f
+```
+
+#### 2. Download DocumentDB Certificate
+
+```bash
+# Download the certificate bundle (required for TLS/SSL)
+wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+```
+
+#### 3. Connect with mongosh
+
+```bash
+# Install mongosh (MongoDB Shell)
+brew install mongosh  # macOS
+# or visit: https://www.mongodb.com/try/download/shell
+
+# Connect through the SSH tunnel (recommended method)
+mongosh --host localhost:27017 \
+  --username "$TF_VAR_mongodb_username" \
+  --password "$TF_VAR_mongodb_password" \
+  --tls \
+  --tlsCAFile global-bundle.pem \
+  --tlsAllowInvalidHostnames
+
+# Alternative: Using connection string (requires URL-encoded password)
+# Note: Special characters in password like % and # must be URL-encoded
+mongosh "mongodb://${TF_VAR_mongodb_username}:${TF_VAR_mongodb_password}@localhost:27017/?tls=true&tlsCAFile=global-bundle.pem&tlsAllowInvalidHostnames=true&replicaSet=rs0&retryWrites=false"
+```
+
+#### Managing SSH Tunnels
+
+```bash
+# Check if tunnel is active
+ps aux | grep "ssh.*-L 27017"
+
+# Kill existing tunnel
+pkill -f "ssh.*-L 27017"
+
+# Test tunnel connectivity
+telnet localhost 27017
+```
+
+### Direct Connection Testing (from VPC)
 
 ```bash
 # Install MongoDB client
