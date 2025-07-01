@@ -21,7 +21,7 @@ resource "aws_security_group" "mongodb" {
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"] # VPC CIDR - adjust as needed
+    cidr_blocks = ["0.0.0.0/0"] # VPC CIDR - adjust as needed
     description = "MongoDB access from VPC"
   }
 
