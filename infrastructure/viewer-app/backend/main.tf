@@ -7,7 +7,7 @@ locals {
   # Secrets outputs
   secret_arns              = data.terraform_remote_state.viewer_app_secrets.outputs.secret_arns
   api_keys_secret_arn      = try(local.secret_arns["api-keys"], null)
-  jwt_secrets_arn          = try(local.secret_arns["jwt-secrets"], null)
+  jwt_secrets_arn          = try(local.secret_arns["backend"], null)
   google_signin_secret_arn = try(local.secret_arns["google-signin"], null)
 }
 
@@ -33,7 +33,6 @@ module "backend" {
   route53_zone_id  = local.route53_zone_id
   subdomains       = ["api"]
   certificate_arn  = data.terraform_remote_state.global_route53.outputs.certificate_arn[terraform.workspace]
-
 
   container_definitions = {
     name = "backend"

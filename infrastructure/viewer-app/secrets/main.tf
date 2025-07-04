@@ -33,3 +33,15 @@ resource "terraform_data" "github_google_signin_secret" {
     command = "gh secret set GOOGLE_SIGNIN_SECRET_ARN -e ${terraform.workspace} -b \"${module.app_secrets["google-signin"].secret_arn}\" --repo BartsNCo/Backend"
   }
 }
+
+resource "terraform_data" "github_backend_secret" {
+  count = contains(keys(var.secrets), "backend") ? 1 : 0
+
+  triggers_replace = [
+    module.app_secrets["backend"].secret_arn
+  ]
+
+  provisioner "local-exec" {
+    command = "gh secret set BACKEND_SECRET_ARN -e ${terraform.workspace} -b \"${module.app_secrets["backend"].secret_arn}\" --repo BartsNCo/Backend"
+  }
+}
