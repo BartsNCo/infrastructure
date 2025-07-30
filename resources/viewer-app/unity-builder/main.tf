@@ -1,6 +1,7 @@
 locals {
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
   unity_assets_bucket_name = "bartsnco-main"
+  unity_build_output_bucket_name = "${terraform.workspace}-unity-builds"
 }
 
 resource "null_resource" "lambda_dependencies" {
@@ -58,6 +59,10 @@ resource "aws_lambda_function" "unity_builder" {
     variables = {
       BUCKET_NAME = local.unity_assets_bucket_name
       MONGODB_SECRET_ARN = local.viewer_app_database_mongodb_connection_secret_arn
+      ECS_TASK_DEFINITION = aws_ecs_task_definition.unity_builder.arn
+      ECS_CLUSTER_NAME = "barts_viewer_cluster_${terraform.workspace}"  # Using default cluster, can be changed if needed
+      ECS_SUBNET_IDS = join(",", data.aws_subnets.default.ids)
+      ECS_SECURITY_GROUP_ID = aws_security_group.lambda_sg.id
     }
   }
 }
@@ -140,6 +145,44 @@ resource "aws_iam_role_policy_attachment" "lambda_s3" {
   policy_arn = aws_iam_policy.lambda_s3_policy.arn
 }
 
+resource "aws_iam_policy" "lambda_ecs_policy" {
+  name        = "${terraform.workspace}-unity-builder-lambda-ecs-policy"
+  description = "IAM policy for Lambda to run ECS tasks"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:RunTask",
+          "ecs:DescribeTasks",
+          "ecs:StopTask"
+        ]
+        Resource = [
+          aws_ecs_task_definition.unity_builder.arn,
+          "arn:aws:ecs:${var.aws_region}:*:task/${terraform.workspace}-unity-builder/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = [
+          aws_iam_role.ecs_task_execution_role.arn,
+          aws_iam_role.ecs_task_role.arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_ecs" {
+  role       = aws_iam_role.lambda_execution.name
+  policy_arn = aws_iam_policy.lambda_ecs_policy.arn
+}
+
 resource "aws_lambda_permission" "allow_bucket" {
   statement_id  = "${title(terraform.workspace)}AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"
@@ -173,6 +216,20 @@ resource "aws_vpc_endpoint" "s3" {
   }
 }
 
+resource "aws_vpc_endpoint" "ecs" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.aws_region}.ecs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+  
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-ecs-endpoint"
+  }
+}
+
 resource "aws_security_group" "vpc_endpoint_sg" {
   name        = "${terraform.workspace}-unity-builder-vpc-endpoint-sg"
   description = "Security group for VPC endpoints"
@@ -196,6 +253,16 @@ resource "aws_security_group" "vpc_endpoint_sg" {
 
   tags = {
     Name = "${terraform.workspace}-unity-builder-vpc-endpoint-sg"
+  }
+}
+
+resource "aws_s3_bucket" "unity_build_output" {
+  bucket_prefix = "${local.unity_build_output_bucket_name}-"
+  force_destroy = true
+
+  tags = {
+    Name        = "Unity Build Output"
+    Environment = terraform.workspace
   }
 }
 
@@ -242,6 +309,169 @@ resource "aws_ecr_lifecycle_policy" "unity_builder" {
         action = {
           type = "expire"
         }
+      }
+    ]
+  })
+}
+
+# ECS Task Definition
+resource "aws_ecs_task_definition" "unity_builder" {
+  family                   = "${terraform.workspace}-unity-builder"
+  requires_compatibilities = ["FARGATE"]
+  network_mode            = "awsvpc"
+  cpu                     = var.unity_builder_cpu
+  memory                  = var.unity_builder_memory
+  execution_role_arn      = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn           = aws_iam_role.ecs_task_role.arn
+
+  ephemeral_storage {
+    size_in_gib = var.unity_builder_ephemeral_storage
+  }
+
+  container_definitions = jsonencode([
+    {
+      name  = "unity-builder"
+      image = "${aws_ecr_repository.unity_builder.repository_url}:${var.unity_builder_image_tag}"
+      
+      environment = [
+        {
+          name  = "AWS_DEFAULT_REGION"
+          value = var.aws_region
+        },
+        {
+          name  = "S3_BUCKET"
+          value = local.unity_assets_bucket_name
+        },
+        {
+          name  = "S3_OUTPUT_BUCKET"
+          value = aws_s3_bucket.unity_build_output.id
+        }
+      ]
+      
+      secrets = [
+        {
+          name      = "MONGODB_URI"
+          valueFrom = "${local.viewer_app_database_mongodb_connection_secret_arn}:MONGODB_URI::"
+        }
+      ]
+      
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_task.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "unity-builder"
+        }
+      }
+      
+      essential = true
+    }
+  ])
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture       = "X86_64"
+  }
+}
+
+# CloudWatch Log Group for ECS Task
+resource "aws_cloudwatch_log_group" "ecs_task" {
+  name              = "/ecs/${terraform.workspace}-unity-builder"
+  retention_in_days = 7
+}
+
+# ECS Task Execution Role
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "${terraform.workspace}-unity-builder-ecs-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# ECS Task Role (for the container itself)
+resource "aws_iam_role" "ecs_task_role" {
+  name = "${terraform.workspace}-unity-builder-ecs-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach policies to ECS Task Execution Role
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# Policy for ECS Task Execution Role to access secrets
+resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
+  name = "${terraform.workspace}-ecs-task-execution-secrets"
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = local.viewer_app_database_mongodb_connection_secret_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Policy for ECS Task Role (container permissions)
+resource "aws_iam_role_policy" "ecs_task_s3_access" {
+  name = "${terraform.workspace}-ecs-task-s3-access"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${local.unity_assets_bucket_name}",
+          "arn:aws:s3:::${local.unity_assets_bucket_name}/*",
+          aws_s3_bucket.unity_build_output.arn,
+          "${aws_s3_bucket.unity_build_output.arn}/*"
+        ]
       }
     ]
   })

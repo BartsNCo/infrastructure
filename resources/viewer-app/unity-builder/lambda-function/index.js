@@ -1,5 +1,6 @@
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { ECSClient, RunTaskCommand } = require('@aws-sdk/client-ecs');
 const { MongoClient } = require('mongodb');
 
 let cachedDb = null;
@@ -86,13 +87,68 @@ exports.handler = async (event, context) => {
                    s3Keys.includes(pano.s3Key.replace('image/', ''));
         });
         
-        // Output only the matching panos
-        console.log(JSON.stringify(matchingPanos, null, 2));
+        // Launch a single ECS task with all matching panos
+        if (matchingPanos.length === 0) {
+            const result = { matchingPanos: 0, tasksLaunched: 0 };
+            console.log(JSON.stringify(result, null, 2));
+            return { statusCode: 200, body: JSON.stringify(result) };
+        }
         
-        return {
-            statusCode: 200,
-            body: JSON.stringify(matchingPanos)
-        };
+        const ecsClient = new ECSClient({ region: process.env.AWS_REGION });
+        
+        try {
+            const runTaskCommand = new RunTaskCommand({
+                cluster: process.env.ECS_CLUSTER_NAME,
+                taskDefinition: process.env.ECS_TASK_DEFINITION,
+                launchType: 'FARGATE',
+                networkConfiguration: {
+                    awsvpcConfiguration: {
+                        subnets: process.env.ECS_SUBNET_IDS.split(','),
+                        securityGroups: [process.env.ECS_SECURITY_GROUP_ID],
+                        assignPublicIp: 'ENABLED'
+                    }
+                },
+                overrides: {
+                    containerOverrides: [
+                        {
+                            name: 'unity-builder',
+                            environment: [
+                                {
+                                    name: 'PANOS_JSON',
+                                    value: JSON.stringify(matchingPanos)
+                                },
+                                {
+                                    name: 'PANOS_COUNT',
+                                    value: matchingPanos.length.toString()
+                                }
+                            ]
+                        }
+                    ]
+                }
+            });
+            
+            const response = await ecsClient.send(runTaskCommand);
+            const taskArn = response.tasks && response.tasks.length > 0 ? response.tasks[0].taskArn : null;
+            
+            const result = {
+                matchingPanos: matchingPanos.length,
+                tasksLaunched: taskArn ? 1 : 0,
+                taskArn: taskArn
+            };
+            
+            console.log(JSON.stringify(result, null, 2));
+            
+            return {
+                statusCode: 200,
+                body: JSON.stringify(result)
+            };
+        } catch (error) {
+            console.error('Failed to launch ECS task:', error.message);
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: error.message })
+            };
+        }
     } catch (error) {
         console.error('Lambda execution failed:', error.message);
         return {

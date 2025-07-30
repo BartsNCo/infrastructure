@@ -12,3 +12,13 @@ output "lambda_function_arn" {
   description = "ARN of the Unity builder Lambda function"
   value       = aws_lambda_function.unity_builder.arn
 }
+
+output "ecs_task_definition_arn" {
+  description = "ARN of the ECS task definition"
+  value       = aws_ecs_task_definition.unity_builder.arn
+}
+
+output "ecs_task_definition_family" {
+  description = "Family name of the ECS task definition"
+  value       = aws_ecs_task_definition.unity_builder.family
+}
