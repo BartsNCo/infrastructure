@@ -36,3 +36,4 @@ package-lock.json
 yarn.lock
 .tfw
 .devwrapper
+lambda_function.zip

@@ -1,11 +1,7 @@
-# Data sources for unity-builder module
-
-# Get the default VPC
 data "aws_vpc" "default" {
   default = true
 }
 
-# Get default subnets
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
@@ -13,21 +9,12 @@ data "aws_subnets" "default" {
   }
 }
 
-# Get ECS cluster from remote state
-data "terraform_remote_state" "viewer_app_ecs_cluster" {
-  backend = "s3"
+data "terraform_remote_state" "viewer_app_database" {
+  backend   = "s3"
+  workspace = terraform.workspace
   config = {
     bucket = "barts-terraform-state-1750103475"
-    key    = "infrastructure/viewer-app/ecs-cluster/terraform.tfstate"
-    region = var.aws_region
+    key    = "infrastructure/viewer-app/database/terraform.tfstate"
+    region = "us-east-1"
   }
-  workspace = terraform.workspace
-}
-
-# Get current AWS account ID
-data "aws_caller_identity" "current" {}
-
-# Get the ECS cluster
-data "aws_ecs_cluster" "main" {
-  cluster_name = data.terraform_remote_state.viewer_app_ecs_cluster.outputs.cluster_id
 }

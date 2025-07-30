@@ -1,331 +1,29 @@
 locals {
-  task_family = "${var.project_name}_unity_builder_${terraform.workspace}"
-  tags = {
-    Environment = terraform.workspace
-    Project     = var.project_name
-    Application = "unity-builder"
+  viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
+  unity_assets_bucket_name = "bartsnco-main"
+}
+
+resource "null_resource" "lambda_dependencies" {
+  provisioner "local-exec" {
+    command = "cd ${path.module}/lambda-function && npm install --production"
+  }
+
+  triggers = {
+    package_json = filemd5("${path.module}/lambda-function/package.json")
   }
 }
 
-# CloudWatch Log Group for the task
-resource "aws_cloudwatch_log_group" "unity_builder" {
-  name              = "/ecs/${local.task_family}"
-  retention_in_days = 7
-  tags              = local.tags
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/lambda-function"
+  output_path = "${path.module}/lambda_function.zip"
+  
+  depends_on = [null_resource.lambda_dependencies]
 }
 
-# IAM Role for ECS Task Execution
-resource "aws_iam_role" "ecs_execution_role" {
-  name = "${local.task_family}_execution_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = local.tags
-}
-
-# IAM Role Policy for ECS Task Execution
-resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
-  role       = aws_iam_role.ecs_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-# Additional policy for pulling from ECR
-resource "aws_iam_role_policy" "ecs_execution_ecr_policy" {
-  name = "${local.task_family}_ecr_policy"
-  role = aws_iam_role.ecs_execution_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# IAM Role for ECS Task
-resource "aws_iam_role" "ecs_task_role" {
-  name = "${local.task_family}_task_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = local.tags
-}
-
-# IAM Policy for S3 Access
-resource "aws_iam_role_policy" "ecs_task_s3_policy" {
-  name = "${local.task_family}_s3_policy"
-  role = aws_iam_role.ecs_task_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "arn:aws:s3:::bartsnco-main",
-          "arn:aws:s3:::bartsnco-main/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:PutObject",
-          "s3:PutObjectAcl",
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          aws_s3_bucket.unity_builder_output.arn,
-          "${aws_s3_bucket.unity_builder_output.arn}/*"
-        ]
-      }
-    ]
-  })
-}
-
-# ECR Repository for the Unity Builder container
-resource "aws_ecr_repository" "unity_builder" {
-  name = "${var.project_name}_unity_builder_${terraform.workspace}"
-
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = local.tags
-}
-
-# ECR Lifecycle Policy
-resource "aws_ecr_lifecycle_policy" "unity_builder" {
-  repository = aws_ecr_repository.unity_builder.name
-
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Keep last 5 images"
-        selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 5
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}
-
-# ECS Task Definition
-resource "aws_ecs_task_definition" "unity_builder" {
-  family                   = local.task_family
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.task_cpu
-  memory                   = var.task_memory
-  execution_role_arn       = aws_iam_role.ecs_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
-
-  container_definitions = jsonencode([
-    {
-      name  = "unity-builder"
-      image = "${aws_ecr_repository.unity_builder.repository_url}:latest"
-      
-      essential = true
-      
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.unity_builder.name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-      
-      environment = [
-        {
-          name  = "S3_BUCKET"
-          value = "bartsnco-main"
-        },
-        {
-          name  = "UNITY_PROJECT_PATH"
-          value = "/app/BartsViewerBundlesBuilder"
-        },
-        {
-          name  = "OUTPUT_S3_BUCKET"
-          value = aws_s3_bucket.unity_builder_output.id
-        }
-      ]
-      
-      mountPoints = []
-      volumesFrom = []
-    }
-  ])
-
-  tags = local.tags
-}
-
-# EventBridge Rule for S3 Object Creation
-resource "aws_cloudwatch_event_rule" "s3_object_created" {
-  name        = "${local.task_family}_s3_trigger"
-  description = "Trigger Unity builder when objects are created in S3"
-
-  event_pattern = jsonencode({
-    source      = ["aws.s3"]
-    detail-type = ["Object Created"]
-    detail = {
-      bucket = {
-        name = ["bartsnco-main"]
-      }
-      object = {
-        key = [{
-          prefix = ""
-        }]
-      }
-    }
-  })
-
-  tags = local.tags
-}
-
-# IAM Role for EventBridge to execute ECS tasks
-resource "aws_iam_role" "eventbridge_ecs_role" {
-  name = "${local.task_family}_eventbridge_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "events.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = local.tags
-}
-
-# IAM Policy for EventBridge to run ECS tasks
-resource "aws_iam_role_policy" "eventbridge_ecs_policy" {
-  name = "${local.task_family}_eventbridge_ecs_policy"
-  role = aws_iam_role.eventbridge_ecs_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ecs:RunTask"
-        ]
-        Resource = aws_ecs_task_definition.unity_builder.arn
-        Condition = {
-          ArnLike = {
-            "ecs:cluster" = data.aws_ecs_cluster.main.arn
-          }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:PassRole"
-        ]
-        Resource = [
-          aws_iam_role.ecs_execution_role.arn,
-          aws_iam_role.ecs_task_role.arn
-        ]
-      }
-    ]
-  })
-}
-
-# EventBridge Target to run ECS Task
-resource "aws_cloudwatch_event_target" "ecs_task" {
-  rule      = aws_cloudwatch_event_rule.s3_object_created.name
-  target_id = "RunECSTask"
-  arn       = data.aws_ecs_cluster.main.arn
-  role_arn  = aws_iam_role.eventbridge_ecs_role.arn
-
-  ecs_target {
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.unity_builder.arn
-    launch_type         = "FARGATE"
-    platform_version    = "LATEST"
-
-    network_configuration {
-      subnets          = data.aws_subnets.default.ids
-      security_groups  = [aws_security_group.unity_builder.id]
-      assign_public_ip = true
-    }
-  }
-
-  input_transformer {
-    input_paths = {
-      bucket = "$.detail.bucket.name"
-      key    = "$.detail.object.key"
-    }
-    input_template = jsonencode({
-      containerOverrides = [{
-        name = "unity-builder"
-        environment = [
-          {
-            name  = "S3_OBJECT_KEY"
-            value = "<key>"
-          },
-          {
-            name  = "S3_BUCKET"
-            value = "<bucket>"
-          }
-        ]
-      }]
-    })
-  }
-}
-
-# Security Group for Unity Builder Task
-resource "aws_security_group" "unity_builder" {
-  name        = "${local.task_family}_sg"
-  description = "Security group for Unity Builder ECS task"
+resource "aws_security_group" "lambda_sg" {
+  name        = "${terraform.workspace}-unity-builder-lambda-sg"
+  description = "Security group for Unity Builder Lambda"
   vpc_id      = data.aws_vpc.default.id
 
   egress {
@@ -336,69 +34,141 @@ resource "aws_security_group" "unity_builder" {
     description = "Allow all outbound traffic"
   }
 
-  tags = local.tags
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-lambda-sg"
+  }
 }
 
-# S3 Bucket for Unity Builder Output
-resource "aws_s3_bucket" "unity_builder_output" {
-  bucket = "${var.project_name}-unity-builder-output-${terraform.workspace}"
-  
-  tags = merge(local.tags, {
-    Purpose = "Unity asset bundle output storage"
+resource "aws_lambda_function" "unity_builder" {
+  filename         = data.archive_file.lambda_zip.output_path
+  function_name    = "${terraform.workspace}-unity-asset-builder"
+  role            = aws_iam_role.lambda_execution.arn
+  handler         = "index.handler"
+  runtime         = "nodejs22.x"
+  timeout         = 900
+  memory_size     = 3008
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+
+  vpc_config {
+    subnet_ids         = data.aws_subnets.default.ids
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+
+  environment {
+    variables = {
+      BUCKET_NAME = local.unity_assets_bucket_name
+      MONGODB_SECRET_ARN = local.viewer_app_database_mongodb_connection_secret_arn
+    }
+  }
+}
+
+resource "aws_iam_role" "lambda_execution" {
+  name = "${terraform.workspace}-unity-builder-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
   })
 }
 
-# S3 Bucket Versioning
-resource "aws_s3_bucket_versioning" "unity_builder_output" {
-  bucket = aws_s3_bucket.unity_builder_output.id
+resource "aws_iam_role_policy_attachment" "lambda_logs" {
+  role       = aws_iam_role.lambda_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_vpc_execution" {
+  role       = aws_iam_role.lambda_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_policy" "lambda_secrets_policy" {
+  name        = "${terraform.workspace}-unity-builder-lambda-secrets-policy"
+  description = "IAM policy for Lambda to access Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = local.viewer_app_database_mongodb_connection_secret_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_secrets" {
+  role       = aws_iam_role.lambda_execution.name
+  policy_arn = aws_iam_policy.lambda_secrets_policy.arn
+}
+
+resource "aws_lambda_permission" "allow_bucket" {
+  statement_id  = "${title(terraform.workspace)}AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.unity_builder.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = "arn:aws:s3:::${local.unity_assets_bucket_name}"
+}
+
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
   
-  versioning_configuration {
-    status = "Enabled"
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
   }
 }
 
-# S3 Bucket Public Access Block
-resource "aws_s3_bucket_public_access_block" "unity_builder_output" {
-  bucket = aws_s3_bucket.unity_builder_output.id
+resource "aws_security_group" "vpc_endpoint_sg" {
+  name        = "${terraform.workspace}-unity-builder-vpc-endpoint-sg"
+  description = "Security group for VPC endpoints"
+  vpc_id      = data.aws_vpc.default.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# S3 Bucket Lifecycle Configuration
-resource "aws_s3_bucket_lifecycle_configuration" "unity_builder_output" {
-  bucket = aws_s3_bucket.unity_builder_output.id
-
-  rule {
-    id     = "cleanup-old-versions"
-    status = "Enabled"
-
-    noncurrent_version_expiration {
-      noncurrent_days = 30
-    }
-    
-    filter {}
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda_sg.id]
+    description     = "Allow HTTPS from Lambda"
   }
 
-  rule {
-    id     = "cleanup-old-builds"
-    status = "Enabled"
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
 
-    expiration {
-      days = 90
-    }
-    
-    filter {
-      prefix = "builds/"
-    }
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-vpc-endpoint-sg"
   }
 }
 
-# S3 Bucket Notification Configuration
 resource "aws_s3_bucket_notification" "bucket_notification" {
-  bucket = "bartsnco-main"
+  bucket = local.unity_assets_bucket_name
 
-  eventbridge = true
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.unity_builder.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "image/"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket]
 }
