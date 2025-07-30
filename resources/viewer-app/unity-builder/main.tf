@@ -108,9 +108,36 @@ resource "aws_iam_policy" "lambda_secrets_policy" {
   })
 }
 
+resource "aws_iam_policy" "lambda_s3_policy" {
+  name        = "${terraform.workspace}-unity-builder-lambda-s3-policy"
+  description = "IAM policy for Lambda to access S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::${local.unity_assets_bucket_name}",
+          "arn:aws:s3:::${local.unity_assets_bucket_name}/*"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_secrets" {
   role       = aws_iam_role.lambda_execution.name
   policy_arn = aws_iam_policy.lambda_secrets_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_s3" {
+  role       = aws_iam_role.lambda_execution.name
+  policy_arn = aws_iam_policy.lambda_s3_policy.arn
 }
 
 resource "aws_lambda_permission" "allow_bucket" {
@@ -132,6 +159,17 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 
   tags = {
     Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
+  }
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = data.aws_vpc.default.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = data.aws_route_tables.default.ids
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-s3-endpoint"
   }
 }
 
