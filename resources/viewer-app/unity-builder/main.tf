@@ -210,3 +210,39 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
 
   depends_on = [aws_lambda_permission.allow_bucket]
 }
+
+resource "aws_ecr_repository" "unity_builder" {
+  name                 = "${terraform.workspace}-unity-builder"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "${terraform.workspace}-unity-builder"
+    Environment = terraform.workspace
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "unity_builder" {
+  repository = aws_ecr_repository.unity_builder.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 5 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
