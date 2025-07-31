@@ -94,13 +94,13 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
             echo "Found ServerData directory, copying to S3..."
             
             # Copy all ServerData contents to S3 output bucket
-            aws s3 cp /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/ServerData/ --recursive
+            aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/assets/
             
             S3_COPY_EXIT_CODE=$?
             
             if [ $S3_COPY_EXIT_CODE -eq 0 ]; then
                 echo "✓ Successfully uploaded Unity build output to S3"
-                echo "Build artifacts available at: s3://${S3_OUTPUT_BUCKET}/ServerData/"
+                echo "Build artifacts available at: s3://${S3_OUTPUT_BUCKET}/assets/"
             else
                 echo "✗ Failed to upload Unity build output to S3 (exit code: $S3_COPY_EXIT_CODE)"
                 exit $S3_COPY_EXIT_CODE

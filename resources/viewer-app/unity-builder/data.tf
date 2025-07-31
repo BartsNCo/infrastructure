@@ -22,3 +22,13 @@ data "terraform_remote_state" "viewer_app_database" {
     region = "us-east-1"
   }
 }
+
+data "terraform_remote_state" "route53" {
+  backend   = "s3"
+  workspace = "global"
+  config = {
+    bucket = "barts-terraform-state-1750103475"
+    key    = "infrastructure/route-53/terraform.tfstate"
+    region = "us-east-1"
+  }
+}

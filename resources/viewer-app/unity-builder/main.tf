@@ -2,6 +2,10 @@ locals {
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
   unity_assets_bucket_name = "bartsnco-main"
   unity_build_output_bucket_name = "${terraform.workspace}-unity-builds"
+  
+  # Route53 values from remote state
+  route53_zone_id = data.terraform_remote_state.route53.outputs.hosted_zone_id[terraform.workspace]
+  domain_name     = data.terraform_remote_state.route53.outputs.domains_name[terraform.workspace]
 }
 
 resource "null_resource" "lambda_dependencies" {
@@ -264,6 +268,197 @@ resource "aws_s3_bucket" "unity_build_output" {
     Name        = "Unity Build Output"
     Environment = terraform.workspace
   }
+}
+
+# S3 bucket policy to allow CloudFront access
+resource "aws_s3_bucket_policy" "unity_build_output" {
+  bucket = aws_s3_bucket.unity_build_output.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontServicePrincipal"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${aws_s3_bucket.unity_build_output.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.unity_assets.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+# ACM Certificate for CloudFront (must be in us-east-1)
+resource "aws_acm_certificate" "unity_assets" {
+  provider          = aws.us_east_1
+  domain_name       = "unityassets.${local.domain_name}"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name        = "${terraform.workspace}-unity-assets-cert"
+    Environment = terraform.workspace
+  }
+}
+
+# DNS validation for ACM certificate
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.unity_assets.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = local.route53_zone_id
+}
+
+# Certificate validation
+resource "aws_acm_certificate_validation" "unity_assets" {
+  provider                = aws.us_east_1
+  certificate_arn         = aws_acm_certificate.unity_assets.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+# CloudFront Origin Access Control (newer than OAI)
+resource "aws_cloudfront_origin_access_control" "unity_assets" {
+  name                              = "${terraform.workspace}-unity-assets-oac"
+  description                       = "OAC for Unity Assets"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# CloudFront Distribution
+resource "aws_cloudfront_distribution" "unity_assets" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "Unity Assets Distribution - ${terraform.workspace}"
+  default_root_object = "index.html"
+  
+  aliases = ["unityassets.${local.domain_name}"]
+
+  origin {
+    domain_name              = aws_s3_bucket.unity_build_output.bucket_regional_domain_name
+    origin_id                = "S3-${aws_s3_bucket.unity_build_output.id}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.unity_assets.id
+  }
+
+  default_cache_behavior {
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3-${aws_s3_bucket.unity_build_output.id}"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0    # No caching by default
+    max_ttl                = 0
+    compress               = true
+  }
+
+  # Custom cache behavior for ServerData path
+  ordered_cache_behavior {
+    path_pattern     = "ServerData/*"
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3-${aws_s3_bucket.unity_build_output.id}"
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+    compress               = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    acm_certificate_arn      = aws_acm_certificate_validation.unity_assets.certificate_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
+  }
+
+  tags = {
+    Name        = "${terraform.workspace}-unity-assets-cdn"
+    Environment = terraform.workspace
+  }
+}
+
+# Output the CloudFront domain
+output "cloudfront_domain_name" {
+  description = "CloudFront distribution domain name"
+  value       = aws_cloudfront_distribution.unity_assets.domain_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  value       = aws_cloudfront_distribution.unity_assets.id
+}
+
+# Route53 record for the unityassets subdomain
+resource "aws_route53_record" "unity_assets" {
+  zone_id = local.route53_zone_id
+  name    = "unityassets.${local.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.unity_assets.domain_name
+    zone_id                = aws_cloudfront_distribution.unity_assets.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+# Route53 record for IPv6
+resource "aws_route53_record" "unity_assets_ipv6" {
+  zone_id = local.route53_zone_id
+  name    = "unityassets.${local.domain_name}"
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_cloudfront_distribution.unity_assets.domain_name
+    zone_id                = aws_cloudfront_distribution.unity_assets.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+output "unity_assets_url" {
+  description = "Unity assets URL"
+  value       = "https://unityassets.${local.domain_name}"
 }
 
 resource "aws_s3_bucket_notification" "bucket_notification" {

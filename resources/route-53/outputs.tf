@@ -5,6 +5,11 @@ output "hosted_zone_id" {
   value       = { for k, v in aws_route53_zone.subdomain : k => v.zone_id }
 }
 
+output "domains_name" {
+  description = "The name of the root domain for this zone"
+  value = { for v in var.subdomain : v.env_name => aws_route53_zone.subdomain[v.env_name].name }
+}
+
 output "hosted_zone_name_servers" {
   description = "Route53 hosted zone name servers by environment"
   value       = { for k, v in aws_route53_zone.subdomain : k => v.name_servers }
