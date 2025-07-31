@@ -70,8 +70,32 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
     echo ""
     echo "Starting Unity build process..."
     
-    # Run Unity in batch mode with WebGL target and refresh assets to trigger AssetPostprocessor
-    unity-editor \
+    # Find Unity editor path
+    UNITY_EDITOR_PATH=$(unity-hub editors --installed | grep "6000.0.54f1" | sed 's/.*installed at //' | head -n 1)
+    if [ -z "$UNITY_EDITOR_PATH" ]; then
+        echo "Unity 6000.0.54f1 not found, trying default path..."
+        UNITY_EDITOR_PATH="/opt/unity/Editor/Unity"
+    fi
+    
+    echo "Using Unity editor at: $UNITY_EDITOR_PATH"
+    
+    # Build for Android target
+    echo "Building for Android..."
+    "$UNITY_EDITOR_PATH" \
+      -batchmode \
+      -quit \
+      -nographics \
+      -silent-crashes \
+      -logFile /dev/stdout \
+      -projectPath /unity-project/BartsViewerBundlesBuilder \
+      -buildTarget Android \
+      -executeMethod UnityEditor.AssetDatabase.Refresh
+    
+    ANDROID_EXIT_CODE=$?
+    
+    # Build for WebGL target
+    echo "Building for WebGL..."
+    "$UNITY_EDITOR_PATH" \
       -batchmode \
       -quit \
       -nographics \
@@ -83,8 +107,8 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
     
     UNITY_EXIT_CODE=$?
     
-    if [ $UNITY_EXIT_CODE -eq 0 ]; then
-        echo "✓ Unity build completed successfully"
+    if [ $ANDROID_EXIT_CODE -eq 0 ] && [ $UNITY_EXIT_CODE -eq 0 ]; then
+        echo "✓ Unity builds completed successfully for both Android and WebGL"
         
         echo ""
         echo "Copying Unity build output to S3..."
@@ -112,8 +136,8 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         fi
         
     else
-        echo "✗ Unity build failed with exit code: $UNITY_EXIT_CODE"
-        exit $UNITY_EXIT_CODE
+        echo "✗ Unity builds failed - Android: $ANDROID_EXIT_CODE, WebGL: $UNITY_EXIT_CODE"
+        exit 1
     fi
     
 else
