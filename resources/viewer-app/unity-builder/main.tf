@@ -161,6 +161,7 @@ resource "aws_iam_policy" "lambda_ecs_policy" {
         Action = [
           "ecs:RunTask",
           "ecs:DescribeTasks",
+          "ecs:ListTasks",
           "ecs:StopTask"
         ]
         Resource = [

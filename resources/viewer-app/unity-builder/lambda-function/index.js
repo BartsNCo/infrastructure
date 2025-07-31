@@ -1,6 +1,6 @@
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
-const { ECSClient, RunTaskCommand } = require('@aws-sdk/client-ecs');
+const { ECSClient, RunTaskCommand, ListTasksCommand, DescribeTasksCommand } = require('@aws-sdk/client-ecs');
 const { MongoClient } = require('mongodb');
 
 let cachedDb = null;
@@ -34,6 +34,52 @@ async function getMongoConnection() {
     } catch (error) {
         console.error('Failed to connect to MongoDB:', error.message);
         throw error;
+    }
+}
+
+async function checkForPendingTasks(ecsClient) {
+    try {
+        // List only pending tasks in the cluster
+        const listPendingCommand = new ListTasksCommand({
+            cluster: process.env.ECS_CLUSTER_NAME,
+            desiredStatus: 'PENDING'
+        });
+        
+        const pendingResponse = await ecsClient.send(listPendingCommand);
+        
+        if (!pendingResponse.taskArns || pendingResponse.taskArns.length === 0) {
+            return { hasPendingTasks: false, pendingTasks: [] };
+        }
+        
+        // Get task details to check task definition family
+        const describeTasksCommand = new DescribeTasksCommand({
+            cluster: process.env.ECS_CLUSTER_NAME,
+            tasks: pendingResponse.taskArns
+        });
+        
+        const describeResponse = await ecsClient.send(describeTasksCommand);
+        
+        // Extract task definition family from ARN
+        const taskDefinitionArn = process.env.ECS_TASK_DEFINITION;
+        const taskFamily = taskDefinitionArn.split('/')[1].split(':')[0]; // Extract family name
+        
+        // Check if any pending task is from the same family
+        const pendingTasksFromFamily = describeResponse.tasks.filter(task => {
+            const taskFamily = task.taskDefinitionArn.split('/')[1].split(':')[0];
+            return taskFamily === taskFamily;
+        });
+        
+        return {
+            hasPendingTasks: pendingTasksFromFamily.length > 0,
+            pendingTasks: pendingTasksFromFamily.map(task => ({
+                taskArn: task.taskArn,
+                lastStatus: task.lastStatus,
+                taskDefinition: task.taskDefinitionArn
+            }))
+        };
+    } catch (error) {
+        console.error('Error checking for pending tasks:', error.message);
+        return { hasPendingTasks: false, pendingTasks: [] };
     }
 }
 
@@ -95,6 +141,25 @@ exports.handler = async (event, context) => {
         }
         
         const ecsClient = new ECSClient({ region: process.env.AWS_REGION });
+        
+        // Check for existing pending tasks from the same family
+        const taskCheck = await checkForPendingTasks(ecsClient);
+        
+        if (taskCheck.hasPendingTasks) {
+            const result = {
+                matchingPanos: matchingPanos.length,
+                tasksLaunched: 0,
+                message: 'Task not launched - existing pending task found',
+                pendingTasks: taskCheck.pendingTasks
+            };
+            
+            console.log(JSON.stringify(result, null, 2));
+            
+            return {
+                statusCode: 200,
+                body: JSON.stringify(result)
+            };
+        }
         
         try {
             const runTaskCommand = new RunTaskCommand({
