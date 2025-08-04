@@ -1,4 +1,10 @@
-FROM docker.io/unityci/editor:ubuntu-6000.0.50f1-webgl-3.1.0
+FROM unityci/hub:ubuntu-3.1.0
+
+# Install Unity Editor 6000.0.54f1
+RUN unity-hub install --version 6000.0.54f1
+
+# Install WebGL and Android modules
+RUN unity-hub install-modules --version 6000.0.54f1 --cm -m webgl android
 
 # Install additional dependencies
 RUN apt-get update && apt-get install -y \
@@ -7,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     git \
     openssh-client \
     unzip \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install AWS CLI v2
