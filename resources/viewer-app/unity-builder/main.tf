@@ -1,8 +1,8 @@
 locals {
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
-  unity_assets_bucket_name = "bartsnco-main"
-  unity_build_output_bucket_name = "${terraform.workspace}-unity-builds"
-  
+  unity_assets_bucket_name                          = "bartsnco-main"
+  unity_build_output_bucket_name                    = "${terraform.workspace}-unity-builds"
+
   # Route53 values from remote state
   route53_zone_id = data.terraform_remote_state.route53.outputs.hosted_zone_id[terraform.workspace]
   domain_name     = data.terraform_remote_state.route53.outputs.domains_name[terraform.workspace]
@@ -22,7 +22,7 @@ data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = "${path.module}/lambda-function"
   output_path = "${path.module}/lambda_function.zip"
-  
+
   depends_on = [null_resource.lambda_dependencies]
 }
 
@@ -47,11 +47,11 @@ resource "aws_security_group" "lambda_sg" {
 resource "aws_lambda_function" "unity_builder" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "${terraform.workspace}-unity-asset-builder"
-  role            = aws_iam_role.lambda_execution.arn
-  handler         = "index.handler"
-  runtime         = "nodejs22.x"
-  timeout         = 900
-  memory_size     = 3008
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "index.handler"
+  runtime          = "nodejs22.x"
+  timeout          = 900
+  memory_size      = 3008
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 
   vpc_config {
@@ -61,11 +61,11 @@ resource "aws_lambda_function" "unity_builder" {
 
   environment {
     variables = {
-      BUCKET_NAME = local.unity_assets_bucket_name
-      MONGODB_SECRET_ARN = local.viewer_app_database_mongodb_connection_secret_arn
-      ECS_TASK_DEFINITION = aws_ecs_task_definition.unity_builder.arn
-      ECS_CLUSTER_NAME = "barts_viewer_cluster_${terraform.workspace}"  # Using default cluster, can be changed if needed
-      ECS_SUBNET_IDS = join(",", data.aws_subnets.default.ids)
+      BUCKET_NAME           = local.unity_assets_bucket_name
+      MONGODB_SECRET_ARN    = local.viewer_app_database_mongodb_connection_secret_arn
+      ECS_TASK_DEFINITION   = aws_ecs_task_definition.unity_builder.arn
+      ECS_CLUSTER_NAME      = "barts_viewer_cluster_${terraform.workspace}" # Using default cluster, can be changed if needed
+      ECS_SUBNET_IDS        = join(",", data.aws_subnets.default.ids)
       ECS_SECURITY_GROUP_ID = aws_security_group.lambda_sg.id
     }
   }
@@ -197,14 +197,24 @@ resource "aws_lambda_permission" "allow_bucket" {
 }
 
 resource "aws_vpc_endpoint" "secretsmanager" {
-  vpc_id              = data.aws_vpc.default.id
-  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
   private_dns_enabled = true
 
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
+  }
+}
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.us-east-1.kms"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
   tags = {
     Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
   }
@@ -222,12 +232,12 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 resource "aws_vpc_endpoint" "ecs" {
-  vpc_id              = data.aws_vpc.default.id
-  service_name        = "com.amazonaws.${var.aws_region}.ecs"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.ecs"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
   private_dns_enabled = true
 
   tags = {
@@ -241,10 +251,10 @@ resource "aws_security_group" "vpc_endpoint_sg" {
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.lambda_sg.id]
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
     description     = "Allow HTTPS from Lambda"
   }
 
@@ -352,7 +362,7 @@ resource "aws_cloudfront_distribution" "unity_assets" {
   is_ipv6_enabled     = true
   comment             = "Unity Assets Distribution - ${terraform.workspace}"
   default_root_object = "index.html"
-  
+
   aliases = ["unityassets.${local.domain_name}"]
 
   origin {
@@ -375,7 +385,7 @@ resource "aws_cloudfront_distribution" "unity_assets" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
-    default_ttl            = 0    # No caching by default
+    default_ttl            = 0 # No caching by default
     max_ttl                = 0
     compress               = true
   }
@@ -514,11 +524,11 @@ resource "aws_ecr_lifecycle_policy" "unity_builder" {
 resource "aws_ecs_task_definition" "unity_builder" {
   family                   = "${terraform.workspace}-unity-builder"
   requires_compatibilities = ["FARGATE"]
-  network_mode            = "awsvpc"
-  cpu                     = var.unity_builder_cpu
-  memory                  = var.unity_builder_memory
-  execution_role_arn      = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn           = aws_iam_role.ecs_task_role.arn
+  network_mode             = "awsvpc"
+  cpu                      = var.unity_builder_cpu
+  memory                   = var.unity_builder_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   ephemeral_storage {
     size_in_gib = var.unity_builder_ephemeral_storage
@@ -528,7 +538,7 @@ resource "aws_ecs_task_definition" "unity_builder" {
     {
       name  = "unity-builder"
       image = "${aws_ecr_repository.unity_builder.repository_url}:${var.unity_builder_image_tag}"
-      
+
       environment = [
         {
           name  = "AWS_DEFAULT_REGION"
@@ -543,14 +553,14 @@ resource "aws_ecs_task_definition" "unity_builder" {
           value = aws_s3_bucket.unity_build_output.id
         }
       ]
-      
+
       secrets = [
         {
           name      = "MONGODB_URI"
           valueFrom = "${local.viewer_app_database_mongodb_connection_secret_arn}:MONGODB_URI::"
         }
       ]
-      
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -559,14 +569,14 @@ resource "aws_ecs_task_definition" "unity_builder" {
           "awslogs-stream-prefix" = "unity-builder"
         }
       }
-      
+
       essential = true
     }
   ])
 
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture       = "X86_64"
+    cpu_architecture        = "X86_64"
   }
 }
 
