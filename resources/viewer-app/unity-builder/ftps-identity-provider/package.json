@@ -1,9 +1,0 @@
-{
-  "name": "ftps-identity-provider",
-  "version": "1.0.0",
-  "description": "FTPS Identity Provider Lambda",
-  "main": "index.js",
-  "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.600.0"
-  }
-}

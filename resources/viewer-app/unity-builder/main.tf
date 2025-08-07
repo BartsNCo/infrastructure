@@ -21,7 +21,7 @@ resource "aws_secretsmanager_secret" "github_token" {
 }
 
 resource "aws_secretsmanager_secret_version" "github_token" {
-  secret_id     = aws_secretsmanager_secret.github_token.id
+  secret_id = aws_secretsmanager_secret.github_token.id
   secret_string = jsonencode({
     GITHUB_TOKEN = var.github_token
   })
@@ -274,7 +274,7 @@ resource "aws_security_group" "vpc_endpoint_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    description     = "Allow HTTPS from Lambda"
+    description = "Allow HTTPS from Lambda"
   }
 
   egress {
