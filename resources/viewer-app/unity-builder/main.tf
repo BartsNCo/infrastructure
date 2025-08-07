@@ -8,6 +8,25 @@ locals {
   domain_name     = data.terraform_remote_state.route53.outputs.domains_name[terraform.workspace]
 }
 
+# GitHub token secret for Unity repository access
+resource "aws_secretsmanager_secret" "github_token" {
+  name                    = "${terraform.workspace}-unity-builder-github-token"
+  description             = "GitHub token for Unity repository access"
+  recovery_window_in_days = 0
+
+  tags = {
+    Name        = "${terraform.workspace}-unity-builder-github-token"
+    Environment = terraform.workspace
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "github_token" {
+  secret_id     = aws_secretsmanager_secret.github_token.id
+  secret_string = jsonencode({
+    GITHUB_TOKEN = var.github_token
+  })
+}
+
 resource "null_resource" "lambda_dependencies" {
   provisioner "local-exec" {
     command = "cd ${path.module}/lambda-function && npm install --production"
@@ -558,6 +577,10 @@ resource "aws_ecs_task_definition" "unity_builder" {
         {
           name      = "MONGODB_URI"
           valueFrom = "${local.viewer_app_database_mongodb_connection_secret_arn}:MONGODB_URI::"
+        },
+        {
+          name      = "GITHUB_TOKEN"
+          valueFrom = "${aws_secretsmanager_secret.github_token.arn}:GITHUB_TOKEN::"
         }
       ]
 
@@ -641,7 +664,10 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = local.viewer_app_database_mongodb_connection_secret_arn
+        Resource = [
+          local.viewer_app_database_mongodb_connection_secret_arn,
+          aws_secretsmanager_secret.github_token.arn
+        ]
       },
       {
         Effect = "Allow"

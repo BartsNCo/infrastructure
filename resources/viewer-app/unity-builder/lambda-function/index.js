@@ -102,7 +102,7 @@ exports.handler = async (event, context) => {
         const s3Files = s3Response.Contents || [];
         
         // Extract just the filenames (remove 'image/' prefix)
-        const s3Keys = s3Files.map(file => file.Key.replace('image/', ''));
+        const unityUrls = s3Files.map(file => file.Key.replace('image/', ''));
         
         // Get all tours and check their panos
         const toursCollection = db.collection('tours');
@@ -112,12 +112,12 @@ exports.handler = async (event, context) => {
         allTours.forEach(tour => {
             if (tour.panos && Array.isArray(tour.panos)) {
                 tour.panos.forEach(pano => {
-                    if (pano.s3Key) {
+                    if (pano.unityUrl) {
                         allPanosFromTours.push({
                             tourId: tour._id,
                             tourName: tour.name,
                             panoId: pano._id || pano.id,
-                            s3Key: pano.s3Key,
+                            unityUrl: pano.unityUrl,
                             panoName: pano.name
                         });
                     }
@@ -127,10 +127,10 @@ exports.handler = async (event, context) => {
         
         // Find matching panos
         const matchingPanos = allPanosFromTours.filter(pano => {
-            const panoKey = pano.s3Key.replace('image/', '').replace('.jpg', '');
-            return s3Keys.includes(panoKey) || 
-                   s3Keys.includes(pano.s3Key) ||
-                   s3Keys.includes(pano.s3Key.replace('image/', ''));
+            const panoKey = pano.unityUrl.replace('image/', '').replace('.jpg', '');
+            return unityUrls.includes(panoKey) || 
+                   unityUrls.includes(pano.unityUrl) ||
+                   unityUrls.includes(pano.unityUrl.replace('image/', ''));
         });
         
         // Launch a single ECS task with all matching panos

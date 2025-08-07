@@ -27,3 +27,9 @@ variable "unity_builder_ephemeral_storage" {
   type        = number
   default     = 60
 }
+
+variable "github_token" {
+  description = "GitHub personal access token for Unity repository access"
+  type        = string
+  sensitive   = true
+}
