@@ -111,7 +111,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
       -projectPath /unity-project/BartsViewerBundlesBuilder \
       -buildTarget android
 
-    # aws s3 cp --recursive /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/assets/
+    # aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/assets/
     # ANDROID_EXIT_CODE=$?
     
     #echo "Building for WebGL..."
@@ -137,7 +137,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         exit 1
     fi
 
-    aws s3 cp --recursive /unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
+    aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
 else
     echo "No panos to process - skipping Unity build"
 fi
