@@ -114,24 +114,26 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
     # aws s3 cp --recursive /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/assets/
     # ANDROID_EXIT_CODE=$?
     
-    echo "Building for WebGL..."
-    "$UNITY_EDITOR_PATH" \
-      -batchmode \
-      -quit \
-      -nographics \
-      -silent-crashes \
-      -logFile /dev/stdout \
-      -projectPath /unity-project/BartsViewerBundlesBuilder \
-      -buildTarget webgl
+    #echo "Building for WebGL..."
+    #"$UNITY_EDITOR_PATH" \
+    #  -batchmode \
+    #  -quit \
+    #  -nographics \
+    #  -silent-crashes \
+    #  -logFile /dev/stdout \
+    #  -projectPath /unity-project/BartsViewerBundlesBuilder \
+    #  -buildTarget webgl
     UNITY_EXIT_CODE=$?
     
     if [ $UNITY_EXIT_CODE -eq 0 ]; then
-        echo "✓ Unity builds completed successfully for both Android and WebGL"
+        #echo "✓ Unity builds completed successfully for both Android and WebGL"
+        echo "✓ Unity builds completed successfully for both Android"
         
         echo ""
         echo "Copying Unity build output to S3..."
     else
-        echo "✗ Unity builds failed - Android: WebGL: $UNITY_EXIT_CODE"
+        #echo "✗ Unity builds failed - Android: WebGL: $UNITY_EXIT_CODE"
+        echo "✗ Unity builds failed - Android: $UNITY_EXIT_CODE"
         exit 1
     fi
 
