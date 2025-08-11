@@ -99,6 +99,8 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         echo ""
         set -e
     done
+
+    find /unity-project/BartsViewerBundlesBuilder
     
     echo "Starting Unity build process WITH tours assets..."    
     
