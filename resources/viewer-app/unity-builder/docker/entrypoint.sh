@@ -126,7 +126,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
       -logFile /dev/stdout \
       -projectPath /unity-project/BartsViewerBundlesBuilder \
       -buildTarget android
-      -executeMethod CommandLineScript.AssetDatabaseRefresh()
+      -executeMethod CommandLineScript.AssetDatabaseRefresh
 
     # aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/assets/
     # ANDROID_EXIT_CODE=$?
