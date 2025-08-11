@@ -36,6 +36,22 @@ else
 fi
 echo ""
 
+echo "Starting Unity once WITHOUT tours assets..."
+    
+# Find Unity editor path
+UNITY_EDITOR_PATH="/opt/unity/editors/6000.0.55f1/Editor/Unity"
+echo "Using Unity editor at: $UNITY_EDITOR_PATH"
+
+echo "Running Unity for Android without tour assets..."
+    "$UNITY_EDITOR_PATH" \
+      -batchmode \
+      -quit \
+      -nographics \
+      -silent-crashes \
+      -logFile /dev/stdout \
+      -projectPath /unity-project/BartsViewerBundlesBuilder \
+      -buildTarget android
+
 if [ -n "${PANOS_JSON}" ]; then
     echo "Panos to process (${PANOS_COUNT} total):"
     echo "${PANOS_JSON}" | jq -r '.[] | "  - Pano ID: \(.panoId) | Tour ID: \(.tourId) | S3 Key: \(.unityUrl) | Name: \(.panoName // "N/A")"'
@@ -84,11 +100,11 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         set -e
     done
     
-    echo "Starting Unity build process..."
+    echo "Starting Unity build process WITH tours assets..."    
     
     # Find Unity editor path
-    UNITY_EDITOR_PATH="/opt/unity/editors/6000.0.55f1/Editor/Unity"
-    echo "Using Unity editor at: $UNITY_EDITOR_PATH"
+    # UNITY_EDITOR_PATH="/opt/unity/editors/6000.0.55f1/Editor/Unity"
+    # echo "Using Unity editor at: $UNITY_EDITOR_PATH"
     
     # Build for Android target
     # echo "Refresh assets"
