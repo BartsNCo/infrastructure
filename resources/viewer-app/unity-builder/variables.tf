@@ -33,3 +33,15 @@ variable "github_token" {
   type        = string
   sensitive   = true
 }
+
+variable "unity_username" {
+  description = "Unity account username for license activation"
+  type        = string
+  sensitive   = true
+}
+
+variable "unity_password" {
+  description = "Unity account password for license activation"
+  type        = string
+  sensitive   = true
+}

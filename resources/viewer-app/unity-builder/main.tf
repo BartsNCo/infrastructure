@@ -8,22 +8,24 @@ locals {
   domain_name     = data.terraform_remote_state.route53.outputs.domains_name[terraform.workspace]
 }
 
-# GitHub token secret for Unity repository access
-resource "aws_secretsmanager_secret" "github_token" {
-  name                    = "${terraform.workspace}-unity-builder-github-token"
-  description             = "GitHub token for Unity repository access"
+# Unity builder secrets for repository access and license activation
+resource "aws_secretsmanager_secret" "unity_builder_secrets" {
+  name_prefix             = "${terraform.workspace}-unity-builder-secrets-"
+  description             = "Unity builder secrets including GitHub token and Unity credentials"
   recovery_window_in_days = 0
 
   tags = {
-    Name        = "${terraform.workspace}-unity-builder-github-token"
+    Name        = "${terraform.workspace}-unity-builder-secrets"
     Environment = terraform.workspace
   }
 }
 
-resource "aws_secretsmanager_secret_version" "github_token" {
-  secret_id = aws_secretsmanager_secret.github_token.id
+resource "aws_secretsmanager_secret_version" "unity_builder_secrets" {
+  secret_id = aws_secretsmanager_secret.unity_builder_secrets.id
   secret_string = jsonencode({
-    GITHUB_TOKEN = var.github_token
+    GITHUB_TOKEN   = var.github_token
+    UNITY_USERNAME = var.unity_username
+    UNITY_PASSWORD = var.unity_password
   })
 }
 
@@ -178,15 +180,29 @@ resource "aws_iam_policy" "lambda_ecs_policy" {
       {
         Effect = "Allow"
         Action = [
-          "ecs:RunTask",
+          "ecs:RunTask"
+        ]
+        Resource = [
+          aws_ecs_task_definition.unity_builder.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ecs:DescribeTasks",
-          "ecs:ListTasks",
           "ecs:StopTask"
         ]
         Resource = [
-          aws_ecs_task_definition.unity_builder.arn,
-          "arn:aws:ecs:${var.aws_region}:*:task/${terraform.workspace}-unity-builder/*"
+          "arn:aws:ecs:${var.aws_region}:*:task/${terraform.workspace}-unity-builder/*",
+          "arn:aws:ecs:${var.aws_region}:*:task/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListTasks"
+        ]
+        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -580,7 +596,15 @@ resource "aws_ecs_task_definition" "unity_builder" {
         },
         {
           name      = "GITHUB_TOKEN"
-          valueFrom = "${aws_secretsmanager_secret.github_token.arn}:GITHUB_TOKEN::"
+          valueFrom = "${aws_secretsmanager_secret.unity_builder_secrets.arn}:GITHUB_TOKEN::"
+        },
+        {
+          name      = "UNITY_USERNAME"
+          valueFrom = "${aws_secretsmanager_secret.unity_builder_secrets.arn}:UNITY_USERNAME::"
+        },
+        {
+          name      = "UNITY_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.unity_builder_secrets.arn}:UNITY_PASSWORD::"
         }
       ]
 
@@ -666,7 +690,7 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
         ]
         Resource = [
           local.viewer_app_database_mongodb_connection_secret_arn,
-          aws_secretsmanager_secret.github_token.arn
+          aws_secretsmanager_secret.unity_builder_secrets.arn
         ]
       },
       {

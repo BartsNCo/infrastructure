@@ -23,3 +23,28 @@ output "ecs_task_definition_family" {
   value       = aws_ecs_task_definition.unity_builder.family
 }
 
+output "ec2_instance_id" {
+  value       = aws_instance.ubuntu.id
+  description = "ID of the EC2 instance"
+}
+
+output "ec2_instance_public_ip" {
+  value       = aws_instance.ubuntu.public_ip
+  description = "Public IP address of the EC2 instance"
+}
+
+output "ec2_instance_public_dns" {
+  value       = aws_instance.ubuntu.public_dns
+  description = "Public DNS name of the EC2 instance"
+}
+
+output "ssh_connection_command" {
+  value       = "ssh -i ec2-key ubuntu@${aws_instance.ubuntu.public_ip}"
+  description = "SSH connection command"
+}
+
+output "unity_builder_secrets_arn" {
+  description = "ARN of the Unity builder secrets in AWS Secrets Manager"
+  value       = aws_secretsmanager_secret.unity_builder_secrets.arn
+}
+

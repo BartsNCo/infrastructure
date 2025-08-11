@@ -14,6 +14,9 @@ echo "  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}"
 echo "  S3_BUCKET: ${S3_BUCKET}"
 echo "  PANOS_COUNT: ${PANOS_COUNT}"
 echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:+[REDACTED]}"
+echo "  UNITY_USERNAME: ${UNITY_USERNAME:+[SET]}"
+echo "  UNITY_PASSWORD: ${UNITY_PASSWORD:+[SET]}"
+echo "  UNITY_SERIAL: ${UNITY_SERIAL:+[SET]}"
 echo ""
 
 # Clone Unity repository if not already cloned
@@ -36,21 +39,73 @@ else
 fi
 echo ""
 
-echo "Starting Unity once WITHOUT tours assets..."
-    
-# Find Unity editor path
+# Handle Unity licensing
 UNITY_EDITOR_PATH="/opt/unity/editors/6000.0.55f1/Editor/Unity"
-echo "Using Unity editor at: $UNITY_EDITOR_PATH"
 
-echo "Running Unity for Android without tour assets..."
-    "$UNITY_EDITOR_PATH" \
-      -batchmode \
-      -quit \
-      -nographics \
-      -silent-crashes \
-      -logFile /dev/stdout \
-      -projectPath /unity-project/BartsViewerBundlesBuilder \
-      -buildTarget android
+# Check for Unity license file in common locations
+echo "Checking for Unity license file..."
+UNITY_LICENSE_PATHS=(
+    "/root/.local/share/unity3d/Unity/Unity_lic.ulf"
+    "/home/unity/.local/share/unity3d/Unity/Unity_lic.ulf"
+    "/Unity_lic.ulf"
+    "/unity-builder/Unity_lic.ulf"
+)
+
+LICENSE_FOUND=false
+for LICENSE_PATH in "${UNITY_LICENSE_PATHS[@]}"; do
+    if [ -f "$LICENSE_PATH" ]; then
+        echo "✓ Found Unity license file at: $LICENSE_PATH"
+        LICENSE_FOUND=true
+        
+        # Ensure the Unity license directory exists
+        UNITY_LICENSE_DIR="/root/.local/share/unity3d/Unity"
+        mkdir -p "$UNITY_LICENSE_DIR"
+        
+        # Copy license file to the expected location if not already there
+        if [ "$LICENSE_PATH" != "/root/.local/share/unity3d/Unity/Unity_lic.ulf" ]; then
+            echo "Copying license file to Unity's expected location..."
+            cp "$LICENSE_PATH" "$UNITY_LICENSE_DIR/Unity_lic.ulf"
+            chmod 644 "$UNITY_LICENSE_DIR/Unity_lic.ulf"
+        fi
+        break
+    fi
+done
+
+if [ "$LICENSE_FOUND" = true ]; then
+    echo "✓ Unity license file is in place"
+elif [ -n "$UNITY_USERNAME" ] && [ -n "$UNITY_PASSWORD" ]; then
+    echo "No license file found, attempting online activation..."
+    echo "Using Unity editor at: $UNITY_EDITOR_PATH"
+    
+    # Check if Unity executable exists
+    if [ ! -f "$UNITY_EDITOR_PATH" ]; then
+        echo "✗ Unity editor not found at: $UNITY_EDITOR_PATH"
+        exit 1
+    fi
+    
+    # Run Unity license activation with output to see what's happening
+    echo "Running license activation command..."
+    if [ -n "$UNITY_SERIAL" ]; then
+        echo "Activating with serial number..."
+        "$UNITY_EDITOR_PATH" -quit -batchmode -nographics -logFile /dev/stdout -serial "$UNITY_SERIAL" -username "$UNITY_USERNAME" -password "$UNITY_PASSWORD"
+    else
+        echo "Activating without serial number (named user license)..."
+        "$UNITY_EDITOR_PATH" -quit -batchmode -nographics -logFile /dev/stdout -serial -username "$UNITY_USERNAME" -password "$UNITY_PASSWORD"
+    fi
+    ACTIVATION_EXIT_CODE=$?
+    
+    if [ $ACTIVATION_EXIT_CODE -eq 0 ]; then
+        echo "✓ Unity license activation command completed successfully"
+    else
+        echo "✗ Unity license activation failed with exit code: $ACTIVATION_EXIT_CODE"
+        echo "Please check your credentials and ensure you have a valid Unity license"
+        exit 1
+    fi
+else
+    echo "WARNING: No Unity license file found and no credentials provided"
+    echo "Unity builds may fail without a valid license"
+fi
+echo ""
 
 if [ -n "${PANOS_JSON}" ]; then
     echo "Panos to process (${PANOS_COUNT} total):"
@@ -99,14 +154,12 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         echo ""
         set -e
     done
-
-    find /unity-project/BartsViewerBundlesBuilder
     
-    echo "Starting Unity build process WITH tours assets..."    
+    echo "Starting Unity build process..."
     
     # Find Unity editor path
-    # UNITY_EDITOR_PATH="/opt/unity/editors/6000.0.55f1/Editor/Unity"
-    # echo "Using Unity editor at: $UNITY_EDITOR_PATH"
+    UNITY_EDITOR_PATH="/opt/unity/editors/6000.0.55f1/Editor/Unity"
+    echo "Using Unity editor at: $UNITY_EDITOR_PATH"
     
     # Build for Android target
     # echo "Refresh assets"
@@ -128,7 +181,6 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
       -logFile /dev/stdout \
       -projectPath /unity-project/BartsViewerBundlesBuilder \
       -buildTarget android
-      -executeMethod CommandLineScript.AssetDatabaseRefresh
 
     # aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ s3://${S3_OUTPUT_BUCKET}/assets/
     # ANDROID_EXIT_CODE=$?
