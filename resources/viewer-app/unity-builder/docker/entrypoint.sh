@@ -58,10 +58,10 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
     # Parse each pano and copy its image to Unity project
     echo "${PANOS_JSON}" | jq -c '.[]' | while read -r pano; do
         TOUR_ID=$(echo "$pano" | jq -r '.tourId')
-        UNITY_URL=$(echo "$pano" | jq -r '.unityUrl')
+        UNITY_PANO_ID=$(echo "$pano" | jq -r '.panoId')
         
         # Extract image name from S3 key (remove 'image/' prefix) and add .jpg extension
-        IMAGE_NAME=$(echo "$UNITY_URL" | sed 's|^image/||').jpg
+        IMAGE_NAME=$(echo "$UNITY_PANO_ID" | sed 's|^image/||').jpg
         
         # Create Unity project directory structure with proper permissions
         UNITY_DEST_DIR="/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets/${TOUR_ID}/panos"
@@ -69,7 +69,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         chmod -R 755 "/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets"
         
         echo "Copying pano for Tour ID: $TOUR_ID"
-        echo "  Source: s3://${S3_BUCKET}/${UNITY_URL}"
+        echo "  Source: s3://${S3_BUCKET}/${UNITY_PANO_ID}"
         echo "  Destination: ${UNITY_DEST_DIR}/${IMAGE_NAME}"
         
         set +e
