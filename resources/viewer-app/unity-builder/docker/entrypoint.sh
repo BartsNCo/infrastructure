@@ -16,7 +16,6 @@ echo "  PANOS_COUNT: ${PANOS_COUNT}"
 echo "  GITHUB_TOKEN: ${GITHUB_TOKEN:+[REDACTED]}"
 echo "  UNITY_USERNAME: ${UNITY_USERNAME:+[SET]}"
 echo "  UNITY_PASSWORD: ${UNITY_PASSWORD:+[SET]}"
-echo "  UNITY_SERIAL: ${UNITY_SERIAL:+[SET]}"
 echo ""
 
 # Clone Unity repository if not already cloned
@@ -84,14 +83,8 @@ elif [ -n "$UNITY_USERNAME" ] && [ -n "$UNITY_PASSWORD" ]; then
     fi
     
     # Run Unity license activation with output to see what's happening
-    echo "Running license activation command..."
-    if [ -n "$UNITY_SERIAL" ]; then
-        echo "Activating with serial number..."
-        "$UNITY_EDITOR_PATH" -quit -batchmode -nographics -logFile /dev/stdout -serial "$UNITY_SERIAL" -username "$UNITY_USERNAME" -password "$UNITY_PASSWORD"
-    else
         echo "Activating without serial number (named user license)..."
-        "$UNITY_EDITOR_PATH" -quit -batchmode -nographics -logFile /dev/stdout -serial -username "$UNITY_USERNAME" -password "$UNITY_PASSWORD"
-    fi
+    "$UNITY_EDITOR_PATH" -quit -batchmode -nographics -logFile /dev/stdout -serial -username "$UNITY_USERNAME" -password "$UNITY_PASSWORD"
     ACTIVATION_EXIT_CODE=$?
     
     if [ $ACTIVATION_EXIT_CODE -eq 0 ]; then
@@ -99,7 +92,6 @@ elif [ -n "$UNITY_USERNAME" ] && [ -n "$UNITY_PASSWORD" ]; then
     else
         echo "✗ Unity license activation failed with exit code: $ACTIVATION_EXIT_CODE"
         echo "Please check your credentials and ensure you have a valid Unity license"
-        exit 1
     fi
 else
     echo "WARNING: No Unity license file found and no credentials provided"
@@ -208,6 +200,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         exit 1
     fi
 
+    find /unity-project/BartsViewerBundlesBuilder
     aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
 else
     echo "No panos to process - skipping Unity build"
