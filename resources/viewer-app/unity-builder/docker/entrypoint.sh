@@ -27,7 +27,7 @@ if [ ! -d "/unity-project/BartsViewerBundlesBuilder" ]; then
     fi
     
     # Clone using token authentication
-    git clone -b dev "https://${GITHUB_TOKEN}@github.com/BartsNCo/Unity.git" /unity-project
+    git clone --depth 1 -b dev "https://${GITHUB_TOKEN}@github.com/BartsNCo/Unity.git" /unity-project
     
     # Remove .git directory to save space
     rm -rf /unity-project/.git
