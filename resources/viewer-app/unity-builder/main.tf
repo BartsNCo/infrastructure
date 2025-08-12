@@ -1,6 +1,6 @@
 locals {
   short_workspace = substr(terraform.workspace, 0, 3)
-  
+
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
   unity_assets_bucket_name                          = "bartsnco-main"
   unity_build_output_bucket_name                    = "${local.short_workspace}-unity-builds"
@@ -8,6 +8,30 @@ locals {
   # Route53 values from remote state
   route53_zone_id = data.terraform_remote_state.route53.outputs.hosted_zone_id[terraform.workspace]
   domain_name     = data.terraform_remote_state.route53.outputs.domains_name[terraform.workspace]
+}
+
+# SSM Document for Ubuntu user sessions
+resource "aws_ssm_document" "ubuntu_session" {
+  name            = "${title(local.short_workspace)}SSMSessionManagerRunShellUbuntu"
+  document_type   = "Session"
+  document_format = "JSON"
+
+  content = jsonencode({
+    schemaVersion = "1.0"
+    description   = "Document to start session with ubuntu user using bash"
+    sessionType   = "Standard_Stream"
+    inputs = {
+      runAsEnabled     = true
+      runAsDefaultUser = "ubuntu"
+      shellProfile = {
+        linux = "cd /home/ubuntu && PATH=/usr/local/bin:$PATH exec /bin/bash"
+      }
+    }
+  })
+
+  tags = {
+    Name = "${terraform.workspace}-ubuntu-session-document"
+  }
 }
 
 # Unity builder secrets for repository access and license activation
@@ -184,12 +208,18 @@ resource "aws_iam_policy" "lambda_ec2_policy" {
         Effect = "Allow"
         Action = [
           "ec2:StartInstances",
-          "ec2:StopInstances",
-          "ec2:DescribeInstances"
+          "ec2:StopInstances"
         ]
         Resource = [
           "arn:aws:ec2:${var.aws_region}:*:instance/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -226,6 +256,18 @@ resource "aws_s3_bucket" "unity_build_output" {
 
   tags = {
     Name        = "Unity Build Output"
+    Environment = terraform.workspace
+  }
+}
+
+# Create dummy file in S3 bucket
+resource "aws_s3_object" "dummy" {
+  bucket  = aws_s3_bucket.unity_build_output.id
+  key     = "dummy.txt"
+  content = ""
+
+  tags = {
+    Name        = "Dummy file"
     Environment = terraform.workspace
   }
 }

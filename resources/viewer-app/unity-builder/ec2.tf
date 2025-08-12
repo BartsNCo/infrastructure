@@ -3,17 +3,12 @@ resource "aws_key_pair" "ec2_key" {
   public_key = file("${path.module}/ec2/ec2-key.pub")
 }
 
-resource "aws_security_group" "ec2_ssh" {
-  name        = "ec2-ssh-access"
-  description = "Security group for EC2 SSH access"
+resource "aws_security_group" "ec2_ssm" {
+  name        = "${local.short_workspace}-ec2-ssm-access"
+  description = "Security group for EC2 SSM access"
 
-  ingress {
-    description = "SSH from anywhere"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # No ingress rules needed for SSM
+  # SSM uses outbound connections only
 
   egress {
     description = "Allow all outbound traffic"
@@ -24,19 +19,18 @@ resource "aws_security_group" "ec2_ssh" {
   }
 
   tags = {
-    Name = "ec2-ssh-security-group"
+    Name = "${terraform.workspace}-ec2-ssm-security-group"
   }
 }
 
 resource "aws_instance" "unity_builder" {
   ami           = var.unity_builder_ami_id
-  instance_type = "c5a.xlarge"
+  instance_type = "c5a.2xlarge"
   key_name      = aws_key_pair.ec2_key.key_name
 
-  iam_instance_profile        = aws_iam_instance_profile.ec2_ssm.name
-  associate_public_ip_address = false
+  iam_instance_profile = aws_iam_instance_profile.ec2_ssm.name
 
-  vpc_security_group_ids = [aws_security_group.ec2_ssh.id]
+  vpc_security_group_ids = [aws_security_group.ec2_ssm.id]
 
   root_block_device {
     volume_type = "gp3"
@@ -46,6 +40,16 @@ resource "aws_instance" "unity_builder" {
 
   user_data = <<-EOF
     #!/bin/bash
+    # Install required packages
+    apt-get update
+    apt-get install -y jq ffmpeg
+    
+    # Install AWS CLI v2
+    cd /tmp
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+    
     # Write environment variables to a file that can be sourced
     cat > /home/ubuntu/.unity_builder_env << 'ENV'
     export S3_INPUT_BUCKET="bartsnco-main"
@@ -61,11 +65,22 @@ resource "aws_instance" "unity_builder" {
     
     # Add to bashrc so it's automatically sourced
     echo "source /home/ubuntu/.unity_builder_env" >> /home/ubuntu/.bashrc
+    
+    # Create update script in home directory
+    cat > /home/ubuntu/update.sh << 'SCRIPT'
+    ${file("${path.module}/ec2/update.sh")}
+    SCRIPT
+    chown ubuntu:ubuntu /home/ubuntu/update.sh
+    chmod +x /home/ubuntu/update.sh
+    
   EOF
 
   tags = {
     Name = "${terraform.workspace}-unity-builder-ec2"
   }
+
+  # Force replacement when update script changes
+  user_data_replace_on_change = true
 }
 
 # IAM role for EC2 instance to enable SSM
@@ -114,6 +129,13 @@ resource "aws_iam_role_policy" "ec2_s3_access" {
           "arn:aws:s3:::${local.short_workspace}-unity-builds-*",
           "arn:aws:s3:::${local.short_workspace}-unity-builds-*/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListAllMyBuckets"
+        ]
+        Resource = "*"
       }
     ]
   })

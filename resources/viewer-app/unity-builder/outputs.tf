@@ -34,18 +34,18 @@ output "unity_builder_secrets_arn" {
   value       = aws_secretsmanager_secret.unity_builder_secrets.arn
 }
 
-output "nlb_dns_name" {
-  description = "DNS name of the Network Load Balancer for SSH access"
-  value       = aws_lb.unity_builder_ssh.dns_name
+output "ssm_connection_command" {
+  value       = "aws ssm start-session --target ${aws_instance.unity_builder.id}"
+  description = "AWS SSM Session Manager connection command"
 }
 
-output "ssh_subdomain" {
-  description = "SSH subdomain URL"
-  value       = aws_route53_record.unity_builder_ssh.fqdn
+output "ssm_connection_command_with_region" {
+  value       = "aws ssm start-session --target ${aws_instance.unity_builder.id} --region ${var.aws_region}"
+  description = "AWS SSM Session Manager connection command with region"
 }
 
-output "ssh_connection_via_nlb" {
-  value       = "ssh -i ec2-key ubuntu@${aws_route53_record.unity_builder_ssh.fqdn}"
-  description = "SSH connection command via load balancer"
+output "ssm_connection_command_ubuntu" {
+  value       = "aws ssm start-session --target ${aws_instance.unity_builder.id} --document-name ${aws_ssm_document.ubuntu_session.name}"
+  description = "AWS SSM Session Manager connection command as ubuntu user"
 }
 

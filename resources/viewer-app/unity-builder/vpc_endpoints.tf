@@ -35,12 +35,12 @@ resource "aws_security_group" "vpc_endpoint_sg" {
 
 # VPC Endpoint for Secrets Manager
 resource "aws_vpc_endpoint" "secretsmanager" {
-  vpc_id              = data.aws_vpc.default.id
-  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
   private_dns_enabled = true
 
   tags = {
@@ -50,12 +50,12 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 
 # VPC Endpoint for KMS
 resource "aws_vpc_endpoint" "kms" {
-  vpc_id              = data.aws_vpc.default.id
-  service_name        = "com.amazonaws.us-east-1.kms"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.us-east-1.kms"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
   tags = {
     Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
   }
@@ -75,15 +75,75 @@ resource "aws_vpc_endpoint" "s3" {
 
 # VPC Endpoint for ECS
 resource "aws_vpc_endpoint" "ecs" {
-  vpc_id              = data.aws_vpc.default.id
-  service_name        = "com.amazonaws.${var.aws_region}.ecs"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.ecs"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
 
   private_dns_enabled = true
 
   tags = {
     Name = "${terraform.workspace}-unity-builder-ecs-endpoint"
+  }
+}
+
+# VPC Endpoint for SSM
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-ssm-endpoint"
+  }
+}
+
+# VPC Endpoint for SSM Messages
+resource "aws_vpc_endpoint" "ssmmessages" {
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.ssmmessages"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-ssmmessages-endpoint"
+  }
+}
+
+# VPC Endpoint for EC2 Messages
+resource "aws_vpc_endpoint" "ec2messages" {
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.ec2messages"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-ec2messages-endpoint"
+  }
+}
+
+# VPC Endpoint for EC2
+resource "aws_vpc_endpoint" "ec2" {
+  vpc_id             = data.aws_vpc.default.id
+  service_name       = "com.amazonaws.${var.aws_region}.ec2"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = data.aws_subnets.default.ids
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${terraform.workspace}-unity-builder-ec2-endpoint"
   }
 }

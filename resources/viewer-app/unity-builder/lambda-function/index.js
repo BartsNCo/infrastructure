@@ -58,6 +58,26 @@ async function waitForInstanceRunning(ec2Client, instanceId, maxRetries = 30) {
     return false;
 }
 
+async function waitForInstanceStopped(ec2Client, instanceId, maxRetries = 30) {
+    for (let i = 0; i < maxRetries; i++) {
+        const describeCommand = new DescribeInstancesCommand({
+            InstanceIds: [instanceId]
+        });
+        
+        const response = await ec2Client.send(describeCommand);
+        const instance = response.Reservations[0]?.Instances[0];
+        
+        if (instance?.State?.Name === 'stopped') {
+            return true;
+        }
+        
+        // Wait 10 seconds before next check
+        await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+    
+    return false;
+}
+
 async function executeCommand(ssmClient, instanceId, commands) {
     const sendCommand = new SendCommandCommand({
         InstanceIds: [instanceId],
@@ -140,6 +160,7 @@ exports.handler = async (event, context) => {
         // Get all tours and check their panos
         const toursCollection = db.collection('tours');
         const allTours = await toursCollection.find({}).toArray();
+        console.log(allTours);
         let allPanosFromTours = [];
         
         allTours.forEach(tour => {
@@ -177,53 +198,84 @@ exports.handler = async (event, context) => {
         const ssmClient = new SSMClient({ region: process.env.AWS_REGION });
         
         try {
-            // Start the EC2 instance
-            const startCommand = new StartInstancesCommand({
+            // Check if instance is already running
+            const describeCommand = new DescribeInstancesCommand({
                 InstanceIds: [process.env.EC2_INSTANCE_ID]
             });
             
-            await ec2Client.send(startCommand);
-            console.log(`Started EC2 instance: ${process.env.EC2_INSTANCE_ID}`);
+            const instanceResponse = await ec2Client.send(describeCommand);
+            const instance = instanceResponse.Reservations[0]?.Instances[0];
+            const instanceState = instance?.State?.Name;
             
-            // Wait for instance to be running
-            const isRunning = await waitForInstanceRunning(ec2Client, process.env.EC2_INSTANCE_ID);
-            
-            if (!isRunning) {
-                throw new Error('Instance failed to reach running state within timeout');
+            if (instanceState !== 'running') {
+                // If instance is stopping, wait for it to stop first
+                if (instanceState === 'stopping') {
+                    console.log(`Instance is stopping, waiting for it to stop completely...`);
+                    const isStopped = await waitForInstanceStopped(ec2Client, process.env.EC2_INSTANCE_ID);
+                    
+                    if (!isStopped) {
+                        throw new Error('Instance failed to reach stopped state within timeout');
+                    }
+                    console.log(`Instance has stopped`);
+                }
+                
+                // Start the EC2 instance
+                const startCommand = new StartInstancesCommand({
+                    InstanceIds: [process.env.EC2_INSTANCE_ID]
+                });
+                
+                await ec2Client.send(startCommand);
+                console.log(`Started EC2 instance: ${process.env.EC2_INSTANCE_ID}`);
+                
+                // Wait for instance to be running
+                const isRunning = await waitForInstanceRunning(ec2Client, process.env.EC2_INSTANCE_ID);
+                
+                if (!isRunning) {
+                    throw new Error('Instance failed to reach running state within timeout');
+                }
+                
+                console.log('Instance is running, waiting 2 minutes for SSM agent to be ready...');
+                await new Promise(resolve => setTimeout(resolve, 120000)); // 2 minutes
+            } else {
+                console.log(`Instance ${process.env.EC2_INSTANCE_ID} is already running, proceeding directly to script execution`);
             }
             
-            console.log('Instance is running, waiting 30 seconds for SSM agent to be ready...');
-            await new Promise(resolve => setTimeout(resolve, 30000));
+            // Save matching panos to file instead of environment variable
+            const panosData = {
+                panos: matchingPanos,
+                count: matchingPanos.length,
+                timestamp: new Date().toISOString()
+            };
             
-            // Prepare environment variables for the script
-            const envVars = [
-                `export PANOS_JSON='${JSON.stringify(matchingPanos)}'`,
-                `export PANOS_COUNT='${matchingPanos.length}'`
-            ];
-            
-            // Execute the update.sh script as ubuntu user
+            // Execute the update.sh script as ubuntu user with background logging
             const commands = [
-                ...envVars,
                 'cd /home/ubuntu',
-                'sudo -u ubuntu -E bash ./update.sh'
+                `echo '${JSON.stringify(panosData)}' | sudo -u ubuntu tee /home/ubuntu/panos_data.json > /dev/null`,
+                'sudo -u ubuntu chmod 644 /home/ubuntu/panos_data.json',
+                'nohup sudo -u ubuntu -E bash ./update.sh > /home/ubuntu/script_output.log 2>&1 &',
+                'echo "Script started in background, check /home/ubuntu/script_output.log for progress"'
             ];
             
             console.log('Executing update.sh script...');
-            const commandResult = await executeCommand(ssmClient, process.env.EC2_INSTANCE_ID, commands);
+            const sendCommand = new SendCommandCommand({
+                InstanceIds: [process.env.EC2_INSTANCE_ID],
+                DocumentName: 'AWS-RunShellScript',
+                Parameters: {
+                    commands: commands
+                },
+                TimeoutSeconds: 3600 // 1 hour timeout
+            });
             
-            if (!commandResult.success) {
-                console.error('Script execution failed:', commandResult.error);
-                throw new Error(`Script execution failed: ${commandResult.error}`);
-            }
-            
-            console.log('Script output:', commandResult.output);
+            const commandResponse = await ssmClient.send(sendCommand);
+            console.log(`Command sent successfully. Command ID: ${commandResponse.Command.CommandId}`);
             
             const result = {
                 matchingPanos: matchingPanos.length,
-                instanceStarted: true,
+                instanceWasRunning: instanceState === 'running',
+                instanceStarted: instanceState !== 'running',
                 instanceId: process.env.EC2_INSTANCE_ID,
                 scriptExecuted: true,
-                scriptOutput: commandResult.output
+                commandId: commandResponse.Command.CommandId
             };
             
             console.log(JSON.stringify(result, null, 2));
