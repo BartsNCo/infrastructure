@@ -82,9 +82,9 @@ resource "aws_lambda_function" "unity_builder" {
 
   environment {
     variables = {
-      BUCKET_NAME           = local.unity_assets_bucket_name
-      MONGODB_SECRET_ARN    = local.viewer_app_database_mongodb_connection_secret_arn
-      EC2_INSTANCE_ID       = aws_instance.unity_builder.id
+      BUCKET_NAME        = local.unity_assets_bucket_name
+      MONGODB_SECRET_ARN = local.viewer_app_database_mongodb_connection_secret_arn
+      EC2_INSTANCE_ID    = aws_instance.unity_builder.id
     }
   }
 }
