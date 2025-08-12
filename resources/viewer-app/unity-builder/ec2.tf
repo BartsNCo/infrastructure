@@ -1,18 +1,3 @@
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
 resource "aws_key_pair" "ec2_key" {
   key_name   = "ec2-instance-key"
   public_key = file("${path.module}/ec2/ec2-key.pub")
@@ -43,10 +28,12 @@ resource "aws_security_group" "ec2_ssh" {
   }
 }
 
-resource "aws_instance" "ubuntu" {
-  ami           = data.aws_ami.ubuntu.id
+resource "aws_instance" "unity_builder" {
+  ami           = var.unity_builder_ami_id
   instance_type = "c5a.xlarge"
   key_name      = aws_key_pair.ec2_key.key_name
+  
+  iam_instance_profile = aws_iam_instance_profile.ec2_ssm.name
 
   vpc_security_group_ids = [aws_security_group.ec2_ssh.id]
 
@@ -57,6 +44,49 @@ resource "aws_instance" "ubuntu" {
   }
 
   tags = {
-    Name = "Ubuntu-EC2-Instance"
+    Name = "${terraform.workspace}-unity-builder-ec2"
+  }
+}
+
+# IAM role for EC2 instance to enable SSM
+resource "aws_iam_role" "ec2_ssm_role" {
+  name = "${terraform.workspace}-unity-builder-ec2-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach SSM managed policy to the role
+resource "aws_iam_role_policy_attachment" "ec2_ssm_policy" {
+  role       = aws_iam_role.ec2_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# Instance profile for EC2
+resource "aws_iam_instance_profile" "ec2_ssm" {
+  name = "${terraform.workspace}-unity-builder-ec2-profile"
+  role = aws_iam_role.ec2_ssm_role.name
+}
+
+# Stop the instance after creation
+resource "null_resource" "stop_instance" {
+  depends_on = [aws_instance.unity_builder]
+
+  provisioner "local-exec" {
+    command = "aws ec2 stop-instances --instance-ids ${aws_instance.unity_builder.id} --region ${var.aws_region} || true"
+  }
+
+  triggers = {
+    instance_id = aws_instance.unity_builder.id
   }
 }

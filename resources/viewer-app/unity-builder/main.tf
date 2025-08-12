@@ -84,10 +84,7 @@ resource "aws_lambda_function" "unity_builder" {
     variables = {
       BUCKET_NAME           = local.unity_assets_bucket_name
       MONGODB_SECRET_ARN    = local.viewer_app_database_mongodb_connection_secret_arn
-      ECS_TASK_DEFINITION   = aws_ecs_task_definition.unity_builder.arn
-      ECS_CLUSTER_NAME      = "barts_viewer_cluster_${terraform.workspace}" # Using default cluster, can be changed if needed
-      ECS_SUBNET_IDS        = join(",", data.aws_subnets.default.ids)
-      ECS_SECURITY_GROUP_ID = aws_security_group.lambda_sg.id
+      EC2_INSTANCE_ID       = aws_instance.unity_builder.id
     }
   }
 }
@@ -170,9 +167,9 @@ resource "aws_iam_role_policy_attachment" "lambda_s3" {
   policy_arn = aws_iam_policy.lambda_s3_policy.arn
 }
 
-resource "aws_iam_policy" "lambda_ecs_policy" {
-  name        = "${terraform.workspace}-unity-builder-lambda-ecs-policy"
-  description = "IAM policy for Lambda to run ECS tasks"
+resource "aws_iam_policy" "lambda_ec2_policy" {
+  name        = "${terraform.workspace}-unity-builder-lambda-ec2-policy"
+  description = "IAM policy for Lambda to manage EC2 instances"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -180,47 +177,32 @@ resource "aws_iam_policy" "lambda_ecs_policy" {
       {
         Effect = "Allow"
         Action = [
-          "ecs:RunTask"
+          "ec2:StartInstances",
+          "ec2:StopInstances",
+          "ec2:DescribeInstances"
         ]
         Resource = [
-          aws_ecs_task_definition.unity_builder.arn
+          "arn:aws:ec2:${var.aws_region}:*:instance/*"
         ]
       },
       {
         Effect = "Allow"
         Action = [
-          "ecs:DescribeTasks",
-          "ecs:StopTask"
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation"
         ]
         Resource = [
-          "arn:aws:ecs:${var.aws_region}:*:task/${terraform.workspace}-unity-builder/*",
-          "arn:aws:ecs:${var.aws_region}:*:task/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ecs:ListTasks"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:PassRole"
-        ]
-        Resource = [
-          aws_iam_role.ecs_task_execution_role.arn,
-          aws_iam_role.ecs_task_role.arn
+          "arn:aws:ssm:${var.aws_region}:*:document/AWS-RunShellScript",
+          "arn:aws:ec2:${var.aws_region}:*:instance/*"
         ]
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_ecs" {
+resource "aws_iam_role_policy_attachment" "lambda_ec2" {
   role       = aws_iam_role.lambda_execution.name
-  policy_arn = aws_iam_policy.lambda_ecs_policy.arn
+  policy_arn = aws_iam_policy.lambda_ec2_policy.arn
 }
 
 resource "aws_lambda_permission" "allow_bucket" {

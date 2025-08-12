@@ -24,22 +24,22 @@ output "ecs_task_definition_family" {
 }
 
 output "ec2_instance_id" {
-  value       = aws_instance.ubuntu.id
+  value       = aws_instance.unity_builder.id
   description = "ID of the EC2 instance"
 }
 
 output "ec2_instance_public_ip" {
-  value       = aws_instance.ubuntu.public_ip
+  value       = aws_instance.unity_builder.public_ip
   description = "Public IP address of the EC2 instance"
 }
 
 output "ec2_instance_public_dns" {
-  value       = aws_instance.ubuntu.public_dns
+  value       = aws_instance.unity_builder.public_dns
   description = "Public DNS name of the EC2 instance"
 }
 
 output "ssh_connection_command" {
-  value       = "ssh -i ec2-key ubuntu@${aws_instance.ubuntu.public_ip}"
+  value       = "ssh -i ec2-key ubuntu@${aws_instance.unity_builder.public_ip}"
   description = "SSH connection command"
 }
 

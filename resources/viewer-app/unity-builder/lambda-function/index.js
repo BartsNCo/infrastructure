@@ -1,6 +1,7 @@
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
-const { ECSClient, RunTaskCommand, ListTasksCommand, DescribeTasksCommand } = require('@aws-sdk/client-ecs');
+const { EC2Client, StartInstancesCommand, DescribeInstancesCommand } = require('@aws-sdk/client-ec2');
+const { SSMClient, SendCommandCommand, GetCommandInvocationCommand } = require('@aws-sdk/client-ssm');
 const { MongoClient } = require('mongodb');
 
 let cachedDb = null;
@@ -37,50 +38,82 @@ async function getMongoConnection() {
     }
 }
 
-async function checkForPendingTasks(ecsClient) {
-    try {
-        // List only pending tasks in the cluster
-        const listPendingCommand = new ListTasksCommand({
-            cluster: process.env.ECS_CLUSTER_NAME,
-            desiredStatus: 'PENDING'
+async function waitForInstanceRunning(ec2Client, instanceId, maxRetries = 30) {
+    for (let i = 0; i < maxRetries; i++) {
+        const describeCommand = new DescribeInstancesCommand({
+            InstanceIds: [instanceId]
         });
         
-        const pendingResponse = await ecsClient.send(listPendingCommand);
+        const response = await ec2Client.send(describeCommand);
+        const instance = response.Reservations[0]?.Instances[0];
         
-        if (!pendingResponse.taskArns || pendingResponse.taskArns.length === 0) {
-            return { hasPendingTasks: false, pendingTasks: [] };
+        if (instance?.State?.Name === 'running') {
+            return true;
         }
         
-        // Get task details to check task definition family
-        const describeTasksCommand = new DescribeTasksCommand({
-            cluster: process.env.ECS_CLUSTER_NAME,
-            tasks: pendingResponse.taskArns
-        });
-        
-        const describeResponse = await ecsClient.send(describeTasksCommand);
-        
-        // Extract task definition family from ARN
-        const taskDefinitionArn = process.env.ECS_TASK_DEFINITION;
-        const taskFamily = taskDefinitionArn.split('/')[1].split(':')[0]; // Extract family name
-        
-        // Check if any pending task is from the same family
-        const pendingTasksFromFamily = describeResponse.tasks.filter(task => {
-            const taskFamily = task.taskDefinitionArn.split('/')[1].split(':')[0];
-            return taskFamily === taskFamily;
-        });
-        
-        return {
-            hasPendingTasks: pendingTasksFromFamily.length > 0,
-            pendingTasks: pendingTasksFromFamily.map(task => ({
-                taskArn: task.taskArn,
-                lastStatus: task.lastStatus,
-                taskDefinition: task.taskDefinitionArn
-            }))
-        };
-    } catch (error) {
-        console.error('Error checking for pending tasks:', error.message);
-        return { hasPendingTasks: false, pendingTasks: [] };
+        // Wait 10 seconds before next check
+        await new Promise(resolve => setTimeout(resolve, 10000));
     }
+    
+    return false;
+}
+
+async function executeCommand(ssmClient, instanceId, commands) {
+    const sendCommand = new SendCommandCommand({
+        InstanceIds: [instanceId],
+        DocumentName: 'AWS-RunShellScript',
+        Parameters: {
+            commands: commands
+        },
+        TimeoutSeconds: 3600 // 1 hour timeout
+    });
+    
+    const commandResponse = await ssmClient.send(sendCommand);
+    const commandId = commandResponse.Command.CommandId;
+    
+    // Wait for command to complete
+    let commandStatus = 'InProgress';
+    let retries = 0;
+    const maxRetries = 360; // 30 minutes with 5 second intervals
+    
+    while (commandStatus === 'InProgress' && retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        
+        const getCommand = new GetCommandInvocationCommand({
+            CommandId: commandId,
+            InstanceId: instanceId
+        });
+        
+        try {
+            const invocationResponse = await ssmClient.send(getCommand);
+            commandStatus = invocationResponse.Status;
+            
+            if (commandStatus === 'Success') {
+                return {
+                    success: true,
+                    output: invocationResponse.StandardOutputContent,
+                    error: invocationResponse.StandardErrorContent
+                };
+            } else if (commandStatus === 'Failed' || commandStatus === 'Cancelled' || commandStatus === 'TimedOut') {
+                return {
+                    success: false,
+                    output: invocationResponse.StandardOutputContent,
+                    error: invocationResponse.StandardErrorContent
+                };
+            }
+        } catch (error) {
+            if (error.name !== 'InvocationDoesNotExist') {
+                throw error;
+            }
+        }
+        
+        retries++;
+    }
+    
+    return {
+        success: false,
+        error: 'Command timed out after 30 minutes'
+    };
 }
 
 exports.handler = async (event, context) => {
@@ -133,72 +166,64 @@ exports.handler = async (event, context) => {
                    unityUrls.includes(pano.unityUrl.replace('image/', ''));
         });
         
-        // Launch a single ECS task with all matching panos
+        // Process with EC2 instance
         if (matchingPanos.length === 0) {
-            const result = { matchingPanos: 0, tasksLaunched: 0 };
+            const result = { matchingPanos: 0, instanceStarted: false };
             console.log(JSON.stringify(result, null, 2));
             return { statusCode: 200, body: JSON.stringify(result) };
         }
         
-        const ecsClient = new ECSClient({ region: process.env.AWS_REGION });
-        
-        // Check for existing pending tasks from the same family
-        const taskCheck = await checkForPendingTasks(ecsClient);
-        
-        if (taskCheck.hasPendingTasks) {
-            const result = {
-                matchingPanos: matchingPanos.length,
-                tasksLaunched: 0,
-                message: 'Task not launched - existing pending task found',
-                pendingTasks: taskCheck.pendingTasks
-            };
-            
-            console.log(JSON.stringify(result, null, 2));
-            
-            return {
-                statusCode: 200,
-                body: JSON.stringify(result)
-            };
-        }
+        const ec2Client = new EC2Client({ region: process.env.AWS_REGION });
+        const ssmClient = new SSMClient({ region: process.env.AWS_REGION });
         
         try {
-            const runTaskCommand = new RunTaskCommand({
-                cluster: process.env.ECS_CLUSTER_NAME,
-                taskDefinition: process.env.ECS_TASK_DEFINITION,
-                launchType: 'FARGATE',
-                networkConfiguration: {
-                    awsvpcConfiguration: {
-                        subnets: process.env.ECS_SUBNET_IDS.split(','),
-                        securityGroups: [process.env.ECS_SECURITY_GROUP_ID],
-                        assignPublicIp: 'ENABLED'
-                    }
-                },
-                overrides: {
-                    containerOverrides: [
-                        {
-                            name: 'unity-builder',
-                            environment: [
-                                {
-                                    name: 'PANOS_JSON',
-                                    value: JSON.stringify(matchingPanos)
-                                },
-                                {
-                                    name: 'PANOS_COUNT',
-                                    value: matchingPanos.length.toString()
-                                }
-                            ]
-                        }
-                    ]
-                }
+            // Start the EC2 instance
+            const startCommand = new StartInstancesCommand({
+                InstanceIds: [process.env.EC2_INSTANCE_ID]
             });
             
-            const response = await ecsClient.send(runTaskCommand);
-            const taskArn = response.tasks && response.tasks.length > 0 ? response.tasks[0].taskArn : null;
+            await ec2Client.send(startCommand);
+            console.log(`Started EC2 instance: ${process.env.EC2_INSTANCE_ID}`);
+            
+            // Wait for instance to be running
+            const isRunning = await waitForInstanceRunning(ec2Client, process.env.EC2_INSTANCE_ID);
+            
+            if (!isRunning) {
+                throw new Error('Instance failed to reach running state within timeout');
+            }
+            
+            console.log('Instance is running, waiting 30 seconds for SSM agent to be ready...');
+            await new Promise(resolve => setTimeout(resolve, 30000));
+            
+            // Prepare environment variables for the script
+            const envVars = [
+                `export PANOS_JSON='${JSON.stringify(matchingPanos)}'`,
+                `export PANOS_COUNT='${matchingPanos.length}'`
+            ];
+            
+            // Execute the update.sh script as ubuntu user
+            const commands = [
+                ...envVars,
+                'cd /home/ubuntu',
+                'sudo -u ubuntu -E bash ./update.sh'
+            ];
+            
+            console.log('Executing update.sh script...');
+            const commandResult = await executeCommand(ssmClient, process.env.EC2_INSTANCE_ID, commands);
+            
+            if (!commandResult.success) {
+                console.error('Script execution failed:', commandResult.error);
+                throw new Error(`Script execution failed: ${commandResult.error}`);
+            }
+            
+            console.log('Script output:', commandResult.output);
             
             const result = {
                 matchingPanos: matchingPanos.length,
-                tasksLaunched: taskArn ? 1 : 0,
-                taskArn: taskArn
+                instanceStarted: true,
+                instanceId: process.env.EC2_INSTANCE_ID,
+                scriptExecuted: true,
+                scriptOutput: commandResult.output
             };
             
             console.log(JSON.stringify(result, null, 2));
@@ -208,7 +233,7 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify(result)
             };
         } catch (error) {
-            console.error('Failed to launch ECS task:', error.message);
+            console.error('Failed to start EC2 instance or execute script:', error.message);
             return {
                 statusCode: 500,
                 body: JSON.stringify({ error: error.message })
