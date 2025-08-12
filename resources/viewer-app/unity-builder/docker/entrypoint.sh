@@ -202,6 +202,11 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
 
     find /unity-project/BartsViewerBundlesBuilder
     aws s3 sync /unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
+
+    echo "Copying Unity addressables streaming assets output to S3..."
+    aws s3 sync /unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa/ "s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/"
+
+    
 else
     echo "No panos to process - skipping Unity build"
 fi
