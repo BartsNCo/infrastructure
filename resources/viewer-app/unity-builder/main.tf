@@ -1,7 +1,9 @@
 locals {
+  short_workspace = substr(terraform.workspace, 0, 3)
+  
   viewer_app_database_mongodb_connection_secret_arn = data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn
   unity_assets_bucket_name                          = "bartsnco-main"
-  unity_build_output_bucket_name                    = "${terraform.workspace}-unity-builds"
+  unity_build_output_bucket_name                    = "${local.short_workspace}-unity-builds"
 
   # Route53 values from remote state
   route53_zone_id = data.terraform_remote_state.route53.outputs.hosted_zone_id[terraform.workspace]
@@ -10,7 +12,7 @@ locals {
 
 # Unity builder secrets for repository access and license activation
 resource "aws_secretsmanager_secret" "unity_builder_secrets" {
-  name_prefix             = "${terraform.workspace}-unity-builder-secrets-"
+  name_prefix             = "${local.short_workspace}-unity-builder-secrets-"
   description             = "Unity builder secrets including GitHub token and Unity credentials"
   recovery_window_in_days = 0
 
@@ -48,7 +50,7 @@ data "archive_file" "lambda_zip" {
 }
 
 resource "aws_security_group" "lambda_sg" {
-  name        = "${terraform.workspace}-unity-builder-lambda-sg"
+  name        = "${local.short_workspace}-unity-builder-lambda-sg"
   description = "Security group for Unity Builder Lambda"
   vpc_id      = data.aws_vpc.default.id
 
@@ -63,11 +65,15 @@ resource "aws_security_group" "lambda_sg" {
   tags = {
     Name = "${terraform.workspace}-unity-builder-lambda-sg"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_lambda_function" "unity_builder" {
   filename         = data.archive_file.lambda_zip.output_path
-  function_name    = "${terraform.workspace}-unity-asset-builder"
+  function_name    = "${local.short_workspace}-unity-asset-builder"
   role             = aws_iam_role.lambda_execution.arn
   handler          = "index.handler"
   runtime          = "nodejs22.x"
@@ -90,7 +96,7 @@ resource "aws_lambda_function" "unity_builder" {
 }
 
 resource "aws_iam_role" "lambda_execution" {
-  name = "${terraform.workspace}-unity-builder-lambda-role"
+  name = "${title(local.short_workspace)}UnityBuilderLambdaRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -117,7 +123,7 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc_execution" {
 }
 
 resource "aws_iam_policy" "lambda_secrets_policy" {
-  name        = "${terraform.workspace}-unity-builder-lambda-secrets-policy"
+  name        = "${title(local.short_workspace)}UnityBuilderLambdaSecretsPolicy"
   description = "IAM policy for Lambda to access Secrets Manager"
 
   policy = jsonencode({
@@ -136,7 +142,7 @@ resource "aws_iam_policy" "lambda_secrets_policy" {
 }
 
 resource "aws_iam_policy" "lambda_s3_policy" {
-  name        = "${terraform.workspace}-unity-builder-lambda-s3-policy"
+  name        = "${title(local.short_workspace)}UnityBuilderLambdaS3Policy"
   description = "IAM policy for Lambda to access S3"
 
   policy = jsonencode({
@@ -168,7 +174,7 @@ resource "aws_iam_role_policy_attachment" "lambda_s3" {
 }
 
 resource "aws_iam_policy" "lambda_ec2_policy" {
-  name        = "${terraform.workspace}-unity-builder-lambda-ec2-policy"
+  name        = "${title(local.short_workspace)}UnityBuilderLambdaEC2Policy"
   description = "IAM policy for Lambda to manage EC2 instances"
 
   policy = jsonencode({
@@ -213,80 +219,6 @@ resource "aws_lambda_permission" "allow_bucket" {
   source_arn    = "arn:aws:s3:::${local.unity_assets_bucket_name}"
 }
 
-resource "aws_vpc_endpoint" "secretsmanager" {
-  vpc_id             = data.aws_vpc.default.id
-  service_name       = "com.amazonaws.${var.aws_region}.secretsmanager"
-  vpc_endpoint_type  = "Interface"
-  subnet_ids         = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
-  }
-}
-resource "aws_vpc_endpoint" "kms" {
-  vpc_id             = data.aws_vpc.default.id
-  service_name       = "com.amazonaws.us-east-1.kms"
-  vpc_endpoint_type  = "Interface"
-  subnet_ids         = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
-  tags = {
-    Name = "${terraform.workspace}-unity-builder-secretsmanager-endpoint"
-  }
-}
-
-resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = data.aws_vpc.default.id
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = data.aws_route_tables.default.ids
-
-  tags = {
-    Name = "${terraform.workspace}-unity-builder-s3-endpoint"
-  }
-}
-
-resource "aws_vpc_endpoint" "ecs" {
-  vpc_id             = data.aws_vpc.default.id
-  service_name       = "com.amazonaws.${var.aws_region}.ecs"
-  vpc_endpoint_type  = "Interface"
-  subnet_ids         = data.aws_subnets.default.ids
-  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
-
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${terraform.workspace}-unity-builder-ecs-endpoint"
-  }
-}
-
-resource "aws_security_group" "vpc_endpoint_sg" {
-  name        = "${terraform.workspace}-unity-builder-vpc-endpoint-sg"
-  description = "Security group for VPC endpoints"
-  vpc_id      = data.aws_vpc.default.id
-
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow HTTPS from Lambda"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound traffic"
-  }
-
-  tags = {
-    Name = "${terraform.workspace}-unity-builder-vpc-endpoint-sg"
-  }
-}
 
 resource "aws_s3_bucket" "unity_build_output" {
   bucket_prefix = "${local.unity_build_output_bucket_name}-"
@@ -502,7 +434,7 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
 }
 
 resource "aws_ecr_repository" "unity_builder" {
-  name                 = "${terraform.workspace}-unity-builder"
+  name                 = "${local.short_workspace}-unity-builder"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 
@@ -539,7 +471,7 @@ resource "aws_ecr_lifecycle_policy" "unity_builder" {
 
 # ECS Task Definition
 resource "aws_ecs_task_definition" "unity_builder" {
-  family                   = "${terraform.workspace}-unity-builder"
+  family                   = "${local.short_workspace}-unity-builder"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.unity_builder_cpu
@@ -611,13 +543,13 @@ resource "aws_ecs_task_definition" "unity_builder" {
 
 # CloudWatch Log Group for ECS Task
 resource "aws_cloudwatch_log_group" "ecs_task" {
-  name              = "/ecs/${terraform.workspace}-unity-builder"
+  name              = "/ecs/${local.short_workspace}-unity-builder"
   retention_in_days = 7
 }
 
 # ECS Task Execution Role
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "${terraform.workspace}-unity-builder-ecs-execution-role"
+  name = "${title(local.short_workspace)}UnityBuilderECSExecutionRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -635,7 +567,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 
 # ECS Task Role (for the container itself)
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${terraform.workspace}-unity-builder-ecs-task-role"
+  name = "${title(local.short_workspace)}UnityBuilderECSTaskRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -659,7 +591,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 
 # Policy for ECS Task Execution Role to access secrets
 resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
-  name = "${terraform.workspace}-ecs-task-execution-secrets"
+  name = "${title(local.short_workspace)}ECSTaskExecutionSecrets"
   role = aws_iam_role.ecs_task_execution_role.id
 
   policy = jsonencode({
@@ -691,7 +623,7 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
 
 # Policy for ECS Task Role (container permissions)
 resource "aws_iam_role_policy" "ecs_task_s3_access" {
-  name = "${terraform.workspace}-ecs-task-s3-access"
+  name = "${title(local.short_workspace)}ECSTaskS3Access"
   role = aws_iam_role.ecs_task_role.id
 
   policy = jsonencode({

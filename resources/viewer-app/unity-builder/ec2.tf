@@ -33,7 +33,8 @@ resource "aws_instance" "unity_builder" {
   instance_type = "c5a.xlarge"
   key_name      = aws_key_pair.ec2_key.key_name
 
-  iam_instance_profile = aws_iam_instance_profile.ec2_ssm.name
+  iam_instance_profile        = aws_iam_instance_profile.ec2_ssm.name
+  associate_public_ip_address = false
 
   vpc_security_group_ids = [aws_security_group.ec2_ssh.id]
 
@@ -69,7 +70,7 @@ resource "aws_instance" "unity_builder" {
 
 # IAM role for EC2 instance to enable SSM
 resource "aws_iam_role" "ec2_ssm_role" {
-  name = "${terraform.workspace}-unity-builder-ec2-ssm-role"
+  name = "${title(local.short_workspace)}UnityBuilderEC2SSMRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -93,7 +94,7 @@ resource "aws_iam_role_policy_attachment" "ec2_ssm_policy" {
 
 # Policy for S3 access (input and output buckets)
 resource "aws_iam_role_policy" "ec2_s3_access" {
-  name = "${terraform.workspace}-unity-builder-ec2-s3-policy"
+  name = "${title(local.short_workspace)}UnityBuilderEC2S3Policy"
   role = aws_iam_role.ec2_ssm_role.id
 
   policy = jsonencode({
@@ -110,8 +111,8 @@ resource "aws_iam_role_policy" "ec2_s3_access" {
         Resource = [
           "arn:aws:s3:::bartsnco-main",
           "arn:aws:s3:::bartsnco-main/*",
-          "arn:aws:s3:::${terraform.workspace}-unity-builds-*",
-          "arn:aws:s3:::${terraform.workspace}-unity-builds-*/*"
+          "arn:aws:s3:::${local.short_workspace}-unity-builds-*",
+          "arn:aws:s3:::${local.short_workspace}-unity-builds-*/*"
         ]
       }
     ]
@@ -120,7 +121,7 @@ resource "aws_iam_role_policy" "ec2_s3_access" {
 
 # Policy for Secrets Manager access (MongoDB credentials)
 resource "aws_iam_role_policy" "ec2_secrets_access" {
-  name = "${terraform.workspace}-unity-builder-ec2-secrets-policy"
+  name = "${title(local.short_workspace)}UnityBuilderEC2SecretsPolicy"
   role = aws_iam_role.ec2_ssm_role.id
 
   policy = jsonencode({
@@ -134,7 +135,7 @@ resource "aws_iam_role_policy" "ec2_secrets_access" {
         ]
         Resource = [
           data.terraform_remote_state.viewer_app_database.outputs.mongodb_connection_secret_arn,
-          "arn:aws:secretsmanager:${var.aws_region}:*:secret:${terraform.workspace}-unity-builder-secrets-*"
+          "arn:aws:secretsmanager:${var.aws_region}:*:secret:${local.short_workspace}-unity-builder-secrets-*"
         ]
       }
     ]
@@ -143,7 +144,7 @@ resource "aws_iam_role_policy" "ec2_secrets_access" {
 
 # Instance profile for EC2
 resource "aws_iam_instance_profile" "ec2_ssm" {
-  name = "${terraform.workspace}-unity-builder-ec2-profile"
+  name = "${title(local.short_workspace)}UnityBuilderEC2Profile"
   role = aws_iam_role.ec2_ssm_role.name
 }
 
