@@ -52,7 +52,7 @@ clean_unity_project() {
         echo "Creating unity-project directory"
         mkdir -p unity-project
     else
-        rm -rf unity-project/*
+        rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
     fi
     # Copy updated files over existing project
     echo "Copying updated files to unity-project..."
