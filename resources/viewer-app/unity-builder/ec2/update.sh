@@ -162,6 +162,21 @@ echo "Starting Unity build for WebGL..."
 
 echo "WebGL build completed"
 
+rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
+cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
+# Build for Windows
+echo "Starting Unity build for Win64..."
+"$UNITY_EDITOR_PATH" \
+	-batchmode \
+	-quit \
+	-nographics \
+	-silent-crashes \
+	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_win64_build.txt" \
+	-projectPath unity-project/BartsViewerBundlesBuilder \
+	-buildTarget win64
+
+echo "Win64 build completed"
+
 echo "Copying Unity build output to S3..."
 # Copy the ServerData folder to S3 output bucket
 if [ -d "/home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData" ]; then
