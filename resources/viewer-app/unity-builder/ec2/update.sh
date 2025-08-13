@@ -194,7 +194,7 @@ if [ -d "/home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.
 else
     echo "Warning: Addressables directory not found at /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa"
 fi
-
+aws s3 sync "$UNITY_BUILDER_LOGS" "s3://${S3_OUTPUT_BUCKET}/build-logs/"
 # Shutdown instance after successful completion
 echo "All tasks completed successfully. Shutting down instance..."
 sudo shutdown -h now
