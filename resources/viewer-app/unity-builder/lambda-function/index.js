@@ -160,19 +160,22 @@ exports.handler = async (event, context) => {
         // Get all tours and check their panos
         const toursCollection = db.collection('tours');
         const allTours = await toursCollection.find({}).toArray();
-        console.log(allTours);
         let allPanosFromTours = [];
         
         allTours.forEach(tour => {
             if (tour.panos && Array.isArray(tour.panos)) {
                 tour.panos.forEach(pano => {
+                    console.log(tour);
+                    console.log(pano);
                     if (pano.unityUrl) {
                         allPanosFromTours.push({
                             tourId: tour._id,
                             tourName: tour.name,
                             panoId: pano._id || pano.id,
                             unityUrl: pano.unityUrl,
-                            panoName: pano.name
+                            panoName: pano.name,
+                            audioKey: pano.audio || null,
+                            thumbnailKey: pano.thumbnailKey || null
                         });
                     }
                 });
@@ -249,11 +252,11 @@ exports.handler = async (event, context) => {
             
             // Execute the update.sh script as ubuntu user with background logging
             const commands = [
-                'cd /home/ubuntu',
-                `echo '${JSON.stringify(panosData)}' | sudo -u ubuntu tee /home/ubuntu/panos_data.json > /dev/null`,
-                'sudo -u ubuntu chmod 644 /home/ubuntu/panos_data.json',
-                'nohup sudo -u ubuntu -E bash ./update.sh > /home/ubuntu/script_output.log 2>&1 &',
-                'echo "Script started in background, check /home/ubuntu/script_output.log for progress"'
+                `echo '${JSON.stringify(panosData)}' > /home/ubuntu/panos_data.json`,
+                'chown ubuntu:ubuntu /home/ubuntu/panos_data.json',
+                'chmod 644 /home/ubuntu/panos_data.json',
+                'su - ubuntu -c "nohup bash /home/ubuntu/update.sh &"',
+                'echo "Script started in background as ubuntu user, check /home/ubuntu/logs-unity-builder/ for logs"'
             ];
             
             console.log('Executing update.sh script...');
