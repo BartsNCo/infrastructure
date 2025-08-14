@@ -34,10 +34,44 @@ get_unity_credentials() {
     export UNITY_PASSWORD
 }
 
+# Function to check and remove Unity lock file
+check_unity_lockfile() {
+    local project_path="${HOME}/unity-project"
+    local lockfile1="${project_path}/UnityLockfile"
+    local lockfile2="${project_path}/BartsViewerBundlesBuilder/UnityLockfile"
+    
+    for lockfile in "$lockfile1" "$lockfile2"; do
+        if [ -f "$lockfile" ]; then
+            echo "Unity lockfile detected at $lockfile"
+            echo "Waiting for Unity to release the lock (max 2 minutes)..."
+            
+            local wait_time=0
+            local max_wait=120 # 2 minutes
+            
+            while [ -f "$lockfile" ] && [ $wait_time -lt $max_wait ]; do
+                sleep 5
+                wait_time=$((wait_time + 5))
+                echo "Waiting... ${wait_time}s/${max_wait}s"
+            done
+            
+            if [ -f "$lockfile" ]; then
+                echo "Unity lockfile still exists after 2 minutes. Force removing..."
+                rm -f "$lockfile"
+                echo "✓ Unity lockfile removed"
+            else
+                echo "✓ Unity lockfile released naturally"
+            fi
+        fi
+    done
+}
+
 # Get credentials
 echo "Getting Unity credentials..."
 get_unity_credentials
 echo "✓ Unity credentials obtained"
+
+# Check for Unity lockfile at the beginning
+check_unity_lockfile
 
 clean_unity_project() {
     if [ -d unity-project-updated ]; then
@@ -147,6 +181,9 @@ echo "Starting Unity build for Android..."
 
 echo "Android build completed"
 
+# Check for Unity lockfile after Android build
+check_unity_lockfile
+
 rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
 cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
 # Build for WebGL
@@ -162,6 +199,9 @@ echo "Starting Unity build for WebGL..."
 
 echo "WebGL build completed"
 
+# Check for Unity lockfile after WebGL build
+check_unity_lockfile
+
 rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
 cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
 # Build for Windows
@@ -176,6 +216,9 @@ echo "Starting Unity build for Win64..."
 	-buildTarget win64
 
 echo "Win64 build completed"
+
+# Check for Unity lockfile after Win64 build
+check_unity_lockfile
 
 echo "Copying Unity build output to S3..."
 # Copy the ServerData folder to S3 output bucket
