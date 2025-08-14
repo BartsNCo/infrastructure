@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+#set -e
 
 # Ensure AWS CLI is in PATH
 export PATH="/usr/local/bin:$PATH"
