@@ -240,7 +240,10 @@ exports.handler = async (event, context) => {
                 console.log('Instance is running, waiting 2 minutes for SSM agent to be ready...');
                 await new Promise(resolve => setTimeout(resolve, 120000)); // 2 minutes
             } else {
-                console.log(`Instance ${process.env.EC2_INSTANCE_ID} is already running, proceeding directly to script execution`);
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({message: "There is a process running already. Will not run it again."})
+                };
             }
             
             // Save matching panos to file instead of environment variable
