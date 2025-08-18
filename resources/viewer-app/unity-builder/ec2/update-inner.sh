@@ -1,6 +1,11 @@
 #!/bin/bash
 #set -e
 
+# Check if Unity process is running - quit immediately if found
+if pgrep -f "Unity" > /dev/null; then
+    exit 0
+fi
+
 # Ensure AWS CLI is in PATH
 export PATH="/usr/local/bin:$PATH"
 
