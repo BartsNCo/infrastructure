@@ -72,7 +72,6 @@ resource "aws_instance" "unity_builder" {
     SCRIPT
     chown ubuntu:ubuntu /home/ubuntu/update.sh
     chmod +x /home/ubuntu/update.sh
-    
   EOF
 
   tags = {

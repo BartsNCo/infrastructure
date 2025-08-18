@@ -223,7 +223,7 @@ check_unity_lockfile
 echo "Copying Unity build output to S3..."
 # Copy the ServerData folder to S3 output bucket
 if [ -d "/home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData" ]; then
-    aws s3 sync --delete /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
+    aws s3 sync --force --delete /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
     echo "Unity build output copied to s3://${S3_OUTPUT_BUCKET}/assets/"
 else
     echo "Error: ServerData directory not found at /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData"
@@ -232,7 +232,7 @@ fi
 # Copy Unity addressables streaming assets to S3
 echo "Copying Unity addressables streaming assets output to S3..."
 if [ -d "/home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa" ]; then
-    aws s3 sync /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa/ "s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/" --delete
+    aws s3 sync --force /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa/ "s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/" --delete
     echo "Unity addressables copied to s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/"
 else
     echo "Warning: Addressables directory not found at /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa"
