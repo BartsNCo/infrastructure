@@ -1,8 +1,11 @@
 #!/bin/bash
 #set -e
 
+# Define Unity editor path early
+UNITY_EDITOR_PATH="/home/ubuntu/Unity/Hub/Editor/6000.0.55f1/Editor/Unity"
+
 # Check if Unity process is running - quit immediately if found
-if pgrep -f "Unity" > /dev/null; then
+if pgrep -f "$UNITY_EDITOR_PATH" > /dev/null; then
     echo "Unity process is already running. Exiting. The other process is still running. Check for the a older log"
     exit 0
 fi
@@ -69,7 +72,7 @@ check_unity_lockfile() {
             fi
         else
             # Check if Unity process is running - quit immediately if found
-            if pgrep -f "Unity" > /dev/null; then
+            if pgrep -f "$UNITY_EDITOR_PATH" > /dev/null; then
                 echo "Unity process is already running. Exiting. The other process is still running. Check for the a older log"
                 exit 0
             fi
@@ -177,8 +180,6 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
 else
     echo "No panos to process (PANOS_JSON is empty or PANOS_COUNT is 0)"
 fi
-
-UNITY_EDITOR_PATH="/home/ubuntu/Unity/Hub/Editor/6000.0.55f1/Editor/Unity"
 
 # Build for Android
 echo "Starting Unity build for Android..."
