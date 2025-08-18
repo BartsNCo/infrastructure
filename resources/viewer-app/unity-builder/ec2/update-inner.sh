@@ -3,6 +3,7 @@
 
 # Check if Unity process is running - quit immediately if found
 if pgrep -f "Unity" > /dev/null; then
+    echo "Unity process is already running. Exiting. The other process is still running. Check for the a older log"
     exit 0
 fi
 
@@ -65,6 +66,12 @@ check_unity_lockfile() {
                 echo "✓ Unity lockfile removed"
             else
                 echo "✓ Unity lockfile released naturally"
+            fi
+        else
+            # Check if Unity process is running - quit immediately if found
+            if pgrep -f "Unity" > /dev/null; then
+                echo "Unity process is already running. Exiting. The other process is still running. Check for the a older log"
+                exit 0
             fi
         fi
     done
