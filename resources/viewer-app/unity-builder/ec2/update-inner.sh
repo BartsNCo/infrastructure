@@ -102,6 +102,8 @@ clean_unity_project() {
         mkdir -p unity-project
     else
         rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
+        rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData
+        rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/
     fi
     # Copy updated files over existing project
     echo "Copying updated files to unity-project..."
