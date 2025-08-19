@@ -155,7 +155,8 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
 
         echo "${FLOORPLANS}" | jq -c '.[]' | while read -r FLOORPLAN; do
             FLOORPLAN_KEY=$(echo "$FLOORPLAN" | jq -r '.s3Key // empty')
-            FLOORPLAN_FILE="${FLOORPLAN_DIR}/${FLOORPLAN_KEY}.jpg"
+            FLOORPLAN_ID=$(echo "$FLOORPLAN" | jq -r '._id // empty')
+            FLOORPLAN_FILE="${FLOORPLAN_DIR}/${FLOORPLAN_ID}.jpg"
             mkdir -p "$FLOORPLAN_DIR"
             echo "Downloading floorplan ${FLOORPLAN_KEY} to ${FLOORPLAN_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${FLOORPLAN_KEY}" "${FLOORPLAN_FILE}"; then
