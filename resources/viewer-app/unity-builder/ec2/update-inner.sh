@@ -135,10 +135,12 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         UNITY_URL=$(echo "$pano" | jq -r '.unityUrl')
         AUDIO_KEY=$(echo "$pano" | jq -r '.audioKey // empty')
         THUMBNAIL_KEY=$(echo "$pano" | jq -r '.thumbnailKey // empty')
+        FLOORPLANS=$(echo "$pano" | jq -r '.floorPlans // []')
         
         # Create tour directory
         TOUR_DIR="/home/ubuntu/images/ToursAssets/${TOUR_ID}"
         PANO_DIR="${TOUR_DIR}/panos"
+        FLOORPLAN_DIR="${TOUR_DIR}/floorplans"
         mkdir -p "$PANO_DIR"
         
         # Download image from S3
@@ -150,6 +152,18 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         else
             echo "  ✗ Failed to download ${IMAGE_NAME}"
         fi
+
+        echo "${FLOORPLANS}" | jq -c '.[]' | while read -r FLOORPLAN; do
+            FLOORPLAN_KEY=$(echo "$FLOORPLAN" | jq -r '.s3Key // empty')
+            FLOORPLAN_FILE="${FLOORPLAN_DIR}/${FLOORPLAN_KEY}"
+            mkdir -p "$FLOORPLAN_DIR"
+            echo "Downloading floorplan ${FLOORPLAN_KEY} to ${FLOORPLAN_FILE}"
+            if aws s3 cp "s3://${S3_INPUT_BUCKET}/${FLOORPLAN_KEY}" "${FLOORPLAN_FILE}"; then
+                echo "  Successfully downloaded floorplan file"
+            else
+                echo "  Failed to download floorplan file"
+            fi
+        done
         
         # Download audio if available
         if [ -n "$AUDIO_KEY" ]; then
