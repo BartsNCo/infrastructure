@@ -66,9 +66,9 @@ check_unity_lockfile() {
             if [ -f "$lockfile" ]; then
                 echo "Unity lockfile still exists after 2 minutes. Force removing..."
                 rm -f "$lockfile"
-                echo "✓ Unity lockfile removed"
+                echo "Unity lockfile removed"
             else
-                echo "✓ Unity lockfile released naturally"
+                echo "Unity lockfile released naturally"
             fi
         else
             # Check if Unity process is running - quit immediately if found
@@ -83,7 +83,7 @@ check_unity_lockfile() {
 # Get credentials
 echo "Getting Unity credentials..."
 get_unity_credentials
-echo "✓ Unity credentials obtained"
+echo "Unity credentials obtained"
 
 # Check for Unity lockfile at the beginning
 check_unity_lockfile
@@ -106,7 +106,7 @@ clean_unity_project() {
     # Copy updated files over existing project
     echo "Copying updated files to unity-project..."
     cp -rf unity-project-updated/* unity-project/
-    echo "✓ Files copied successfully"
+    echo "Files copied successfully"
 }
 echo "Setting up Unity project..."
 clean_unity_project
@@ -148,9 +148,9 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         echo "Downloading ${UNITY_URL} to ${PANO_DIR}/${IMAGE_NAME}"
         
         if aws s3 cp "s3://${S3_INPUT_BUCKET}/${UNITY_URL}" "${PANO_DIR}/${IMAGE_NAME}"; then
-            echo "  ✓ Successfully downloaded ${IMAGE_NAME}"
+            echo "  Successfully downloaded ${IMAGE_NAME}"
         else
-            echo "  ✗ Failed to download ${IMAGE_NAME}"
+            echo "  Failed to download ${IMAGE_NAME}"
         fi
 
         echo "${FLOORPLANS}" | jq -c '.[]' | while read -r FLOORPLAN; do
@@ -171,9 +171,9 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
             mkdir -p "${PANO_DIR}/audio"
             echo "Downloading audio ${AUDIO_KEY} to ${AUDIO_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${AUDIO_KEY}" "${AUDIO_FILE}"; then
-                echo "  ✓ Successfully downloaded audio file"
+                echo "  Successfully downloaded audio file"
             else
-                echo "  ✗ Failed to download audio file"
+                echo "  Failed to download audio file"
             fi
         fi
         
@@ -182,9 +182,9 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
             THUMBNAIL_FILE="${TOUR_DIR}/${THUMBNAIL_KEY}.jpg"
             echo "Downloading thumbnail ${THUMBNAIL_KEY} to ${THUMBNAIL_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${THUMBNAIL_KEY}" "${THUMBNAIL_FILE}"; then
-                echo "  ✓ Successfully downloaded thumbnail file"
+                echo "  Successfully downloaded thumbnail file"
             else
-                echo "  ✗ Failed to download thumbnail file"
+                echo "  Failed to download thumbnail file"
             fi
         fi
     done
@@ -192,7 +192,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
     # Copy to Unity project
     echo "Copying images to Unity project..."
     cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
-    echo "✓ Images copied to Unity project"
+    echo "Images copied to Unity project"
 else
     echo "No panos to process (PANOS_JSON is empty or PANOS_COUNT is 0)"
 fi
