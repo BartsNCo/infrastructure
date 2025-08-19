@@ -195,43 +195,43 @@ echo "Starting Unity build for Android..."
 echo "Android build completed"
 
 # Check for Unity lockfile after Android build
-check_unity_lockfile
-
-rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
-cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
-# Build for WebGL
-echo "Starting Unity build for WebGL..."
-"$UNITY_EDITOR_PATH" \
-	-batchmode \
-	-quit \
-	-nographics \
-	-silent-crashes \
-	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_webgl_build.txt" \
-	-projectPath unity-project/BartsViewerBundlesBuilder \
-	-buildTarget webgl
-
-echo "WebGL build completed"
-
-# Check for Unity lockfile after WebGL build
-check_unity_lockfile
-
-rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
-cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
-# Build for Windows
-echo "Starting Unity build for Win64..."
-"$UNITY_EDITOR_PATH" \
-	-batchmode \
-	-quit \
-	-nographics \
-	-silent-crashes \
-	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_win64_build.txt" \
-	-projectPath unity-project/BartsViewerBundlesBuilder \
-	-buildTarget win64
-
-echo "Win64 build completed"
-
-# Check for Unity lockfile after Win64 build
-check_unity_lockfile
+# check_unity_lockfile
+#
+# rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
+# cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
+# # Build for WebGL
+# echo "Starting Unity build for WebGL..."
+# "$UNITY_EDITOR_PATH" \
+# 	-batchmode \
+# 	-quit \
+# 	-nographics \
+# 	-silent-crashes \
+# 	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_webgl_build.txt" \
+# 	-projectPath unity-project/BartsViewerBundlesBuilder \
+# 	-buildTarget webgl
+#
+# echo "WebGL build completed"
+#
+# # Check for Unity lockfile after WebGL build
+# check_unity_lockfile
+#
+# rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
+# cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
+# # Build for Windows
+# echo "Starting Unity build for Win64..."
+# "$UNITY_EDITOR_PATH" \
+# 	-batchmode \
+# 	-quit \
+# 	-nographics \
+# 	-silent-crashes \
+# 	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_win64_build.txt" \
+# 	-projectPath unity-project/BartsViewerBundlesBuilder \
+# 	-buildTarget win64
+#
+# echo "Win64 build completed"
+#
+# # Check for Unity lockfile after Win64 build
+# check_unity_lockfile
 
 echo "Copying Unity build output to S3..."
 # Copy the ServerData folder to S3 output bucket
@@ -253,6 +253,6 @@ fi
 aws s3 sync "$UNITY_BUILDER_LOGS" "s3://${S3_OUTPUT_BUCKET}/build-logs/"
 # Shutdown instance after successful completion
 echo "All tasks completed successfully. Shutting down instance..."
-sudo shutdown -h now
+sudo shutdown now
 
 
