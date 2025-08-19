@@ -182,7 +182,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         
         # Download thumbnail if available
         if [ -n "$THUMBNAIL_KEY" ]; then
-            THUMBNAIL_FILE="${TOUR_DIR}/thumbnail/${THUMBNAIL_KEY}.jpg"
+            THUMBNAIL_FILE="${TOUR_DIR}/${THUMBNAIL_KEY}.jpg"
             echo "Downloading thumbnail ${THUMBNAIL_KEY} to ${THUMBNAIL_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${THUMBNAIL_KEY}" "${THUMBNAIL_FILE}"; then
                 echo "  Successfully downloaded thumbnail file"
