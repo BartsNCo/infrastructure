@@ -153,7 +153,8 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         
         # Download audio if available
         if [ -n "$AUDIO_KEY" ]; then
-            AUDIO_FILE="${PANO_DIR}/${AUDIO_KEY}"
+            AUDIO_FILE="${PANO_DIR}/audio/${AUDIO_KEY}"
+            mkdir -p "${PANO_DIR}/audio"
             echo "Downloading audio ${AUDIO_KEY} to ${AUDIO_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${AUDIO_KEY}" "${AUDIO_FILE}"; then
                 echo "  ✓ Successfully downloaded audio file"
@@ -164,7 +165,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         
         # Download thumbnail if available
         if [ -n "$THUMBNAIL_KEY" ]; then
-            THUMBNAIL_FILE="${TOUR_DIR}/${THUMBNAIL_KEY}"
+            THUMBNAIL_FILE="${TOUR_DIR}/${THUMBNAIL_KEY}.jpg"
             echo "Downloading thumbnail ${THUMBNAIL_KEY} to ${THUMBNAIL_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${THUMBNAIL_KEY}" "${THUMBNAIL_FILE}"; then
                 echo "  ✓ Successfully downloaded thumbnail file"
