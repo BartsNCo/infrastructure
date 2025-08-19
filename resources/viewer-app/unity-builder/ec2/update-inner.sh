@@ -137,14 +137,15 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         THUMBNAIL_KEY=$(echo "$pano" | jq -r '.thumbnailKey // empty')
         
         # Create tour directory
-        TOUR_DIR="/home/ubuntu/images/ToursAssets/${TOUR_ID}/panos"
-        mkdir -p "$TOUR_DIR"
+        TOUR_DIR="/home/ubuntu/images/ToursAssets/${TOUR_ID}"
+        PANO_DIR="${TOUR_DIR}/panos"
+        mkdir -p "$PANO_DIR"
         
         # Download image from S3
         IMAGE_NAME="${PANO_ID}.jpg"
-        echo "Downloading ${UNITY_URL} to ${TOUR_DIR}/${IMAGE_NAME}"
+        echo "Downloading ${UNITY_URL} to ${PANO_DIR}/${IMAGE_NAME}"
         
-        if aws s3 cp "s3://${S3_INPUT_BUCKET}/${UNITY_URL}" "${TOUR_DIR}/${IMAGE_NAME}"; then
+        if aws s3 cp "s3://${S3_INPUT_BUCKET}/${UNITY_URL}" "${PANO_DIR}/${IMAGE_NAME}"; then
             echo "  ✓ Successfully downloaded ${IMAGE_NAME}"
         else
             echo "  ✗ Failed to download ${IMAGE_NAME}"
@@ -152,7 +153,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         
         # Download audio if available
         if [ -n "$AUDIO_KEY" ]; then
-            AUDIO_FILE="${TOUR_DIR}/${AUDIO_KEY}"
+            AUDIO_FILE="${PANO_DIR}/${AUDIO_KEY}"
             echo "Downloading audio ${AUDIO_KEY} to ${AUDIO_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${AUDIO_KEY}" "${AUDIO_FILE}"; then
                 echo "  ✓ Successfully downloaded audio file"
