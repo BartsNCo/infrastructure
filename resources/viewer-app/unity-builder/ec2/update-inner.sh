@@ -112,13 +112,13 @@ clean_unity_project() {
     echo "Files copied successfully"
     echo "-------------- clean project contents --------------------"
     echo ToursAssets contents
-    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets type -f
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets -type f
     echo ""
     echo AddressableAssetsData contents
-    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData type -f
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData -type f
     echo ""
     echo ServerData contents
-    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ type -f
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ -type f
     echo "-------------- end clean project contents ----------------"
 }
 echo "Setting up Unity project..."
