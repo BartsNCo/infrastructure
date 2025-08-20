@@ -88,6 +88,19 @@ echo "Unity credentials obtained"
 # Check for Unity lockfile at the beginning
 check_unity_lockfile
 
+log_assets() {
+    echo "-------------- project contents --------------------"
+    echo ToursAssets contents
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets -type f
+    echo ""
+    echo AddressableAssetsData contents
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData -type f
+    echo ""
+    echo ServerData contents
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ -type f
+    echo "-------------- end project contents ----------------"
+}
+
 clean_unity_project() {
     if [ -d unity-project-updated ]; then
         echo "Updateting Unity repository to temporary directory..."
@@ -110,19 +123,10 @@ clean_unity_project() {
     echo "Copying updated files to unity-project..."
     cp -rf unity-project-updated/* unity-project/
     echo "Files copied successfully"
-    echo "-------------- clean project contents --------------------"
-    echo ToursAssets contents
-    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets -type f
-    echo ""
-    echo AddressableAssetsData contents
-    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData -type f
-    echo ""
-    echo ServerData contents
-    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ -type f
-    echo "-------------- end clean project contents ----------------"
 }
 echo "Setting up Unity project..."
 clean_unity_project
+log_assets
 # Load panos from file
 PANOS_FILE="/home/ubuntu/panos_data.json"
 if [ -f "$PANOS_FILE" ]; then
@@ -281,6 +285,8 @@ else
 fi
 aws s3 sync "$UNITY_BUILDER_LOGS" "s3://${S3_OUTPUT_BUCKET}/build-logs/"
 # Shutdown instance after successful completion
+
+log_assets
 echo "All tasks completed successfully. Shutting down instance..."
 sudo shutdown now
 
