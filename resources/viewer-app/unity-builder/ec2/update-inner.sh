@@ -170,7 +170,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         
         # Download audio if available
         if [ -n "$AUDIO_KEY" ]; then
-            AUDIO_FILE="${PANO_DIR}/audio/${AUDIO_KEY}.mp3"
+            AUDIO_FILE="${PANO_DIR}/${AUDIO_KEY}.mp3"
             mkdir -p "${PANO_DIR}/audio"
             echo "Downloading audio ${AUDIO_KEY} to ${AUDIO_FILE}"
             if aws s3 cp "s3://${S3_INPUT_BUCKET}/${AUDIO_KEY}" "${AUDIO_FILE}"; then
