@@ -1,5 +1,30 @@
 #!/bin/bash
 set -x
+
+# Control file to prevent concurrent executions
+CONTROL_FILE="/home/ubuntu/unity_builder_update.lock"
+
+# Check if control file exists
+if [ -f "$CONTROL_FILE" ]; then
+    # Get file creation time (modification time in seconds since epoch)
+    FILE_TIME=$(stat -c %Y "$CONTROL_FILE" 2>/dev/null || stat -f %m "$CONTROL_FILE" 2>/dev/null)
+    CURRENT_TIME=$(date +%s)
+    TIME_DIFF=$((CURRENT_TIME - FILE_TIME))
+    
+    # If file is less than 2 minutes old (120 seconds), exit
+    if [ $TIME_DIFF -lt 120 ]; then
+        echo "Update already running (lock file created ${TIME_DIFF} seconds ago). Exiting."
+        exit 0
+    else
+        # File is older than 2 minutes, remove it
+        echo "Removing stale lock file (${TIME_DIFF} seconds old)"
+        rm -f "$CONTROL_FILE"
+    fi
+fi
+
+# Create new control file
+touch "$CONTROL_FILE"
+echo "Created lock file at $(date)"
  
 # Ensure AWS CLI is in PATH
 export PATH="/usr/local/bin:$PATH"
@@ -40,3 +65,7 @@ cp -f "${IAC_DIR}/resources/viewer-app/unity-builder/ec2/update-inner.sh" "$UPDA
 chmod +x "$UPDATE_SCRIPT"
 
 bash "$UPDATE_SCRIPT"
+
+# Remove the control file at the end
+rm -f "$CONTROL_FILE"
+echo "Removed lock file"
