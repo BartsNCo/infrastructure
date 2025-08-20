@@ -101,6 +101,7 @@ clean_unity_project() {
         echo "Creating unity-project directory"
         mkdir -p unity-project
     else
+        echo "Cleaning unity-project directory"
         rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
         rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData
         rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/
@@ -109,10 +110,19 @@ clean_unity_project() {
     echo "Copying updated files to unity-project..."
     cp -rf unity-project-updated/* unity-project/
     echo "Files copied successfully"
+    echo "-------------- clean project contents --------------------"
+    echo ToursAssets contents
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets type -f
+    echo ""
+    echo AddressableAssetsData contents
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/AddressableAssetsData type -f
+    echo ""
+    echo ServerData contents
+    find /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ type -f
+    echo "-------------- end clean project contents ----------------"
 }
 echo "Setting up Unity project..."
 clean_unity_project
-
 # Load panos from file
 PANOS_FILE="/home/ubuntu/panos_data.json"
 if [ -f "$PANOS_FILE" ]; then
