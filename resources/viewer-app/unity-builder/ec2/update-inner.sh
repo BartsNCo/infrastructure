@@ -290,6 +290,6 @@ aws s3 sync "$UNITY_BUILDER_LOGS" "s3://${S3_OUTPUT_BUCKET}/build-logs/"
 
 log_assets
 echo "All tasks completed successfully. Shutting down instance..."
-# sudo shutdown now
+sudo shutdown now
 
 
