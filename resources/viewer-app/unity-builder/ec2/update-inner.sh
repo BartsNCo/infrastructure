@@ -217,16 +217,16 @@ else
 fi
 
 # Build for Android
-# echo "Starting Unity build for Android..."
-# "$UNITY_EDITOR_PATH" \
-# 	-batchmode \
-# 	-quit \
-# 	-nographics \
-# 	-silent-crashes \
-# 	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_android_build.txt" \
-# 	-projectPath unity-project/BartsViewerBundlesBuilder \
-# 	-buildTarget android
-#
+echo "Starting Unity build for Android..."
+"$UNITY_EDITOR_PATH" \
+	-batchmode \
+	-quit \
+	-nographics \
+	-silent-crashes \
+	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_android_build.txt" \
+	-projectPath unity-project/BartsViewerBundlesBuilder \
+	-buildTarget android
+
 # echo "Android build completed"
 
 #Check for Unity lockfile after Android build
