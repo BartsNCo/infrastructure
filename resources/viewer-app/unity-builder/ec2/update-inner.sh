@@ -141,8 +141,10 @@ fi
 if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
     echo "Processing ${PANOS_COUNT} panos from environment variable..."
     
+    TEMP_ASSETS_DIR="/home/ubuntu/images/ToursAssets"
+    rm -rf "$TEMP_ASSETS_DIR"
     # Create images directory structure
-    mkdir -p /home/ubuntu/images/ToursAssets
+    mkdir -p "$TEMP_ASSETS_DIR"
     
     # Parse each pano and download its image
     echo "${PANOS_JSON}" | jq -c '.[]' | while read -r pano; do
@@ -154,7 +156,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         FLOORPLANS=$(echo "$pano" | jq -r '.floorPlans // []')
         
         # Create tour directory
-        TOUR_DIR="/home/ubuntu/images/ToursAssets/${TOUR_ID}"
+        TOUR_DIR="${TEMP_ASSETS_DIR}/${TOUR_ID}"
         PANO_DIR="${TOUR_DIR}/panos"
         FLOORPLAN_DIR="${TOUR_DIR}/floorplans"
         mkdir -p "$PANO_DIR"
@@ -227,9 +229,9 @@ echo "Starting Unity build for Android..."
 
 echo "Android build completed"
 
-# Check for Unity lockfile after Android build
-# check_unity_lockfile
-#
+#Check for Unity lockfile after Android build
+check_unity_lockfile
+
 # rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
 # cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
 # # Build for WebGL
@@ -248,23 +250,23 @@ echo "Android build completed"
 # # Check for Unity lockfile after WebGL build
 # check_unity_lockfile
 #
-# rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
-# cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
-# # Build for Windows
+rm -rf /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/ToursAssets
+cp -r /home/ubuntu/images/ToursAssets /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Assets/
+# Build for Windows
 # echo "Starting Unity build for Win64..."
-# "$UNITY_EDITOR_PATH" \
-# 	-batchmode \
-# 	-quit \
-# 	-nographics \
-# 	-silent-crashes \
-# 	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_win64_build.txt" \
-# 	-projectPath unity-project/BartsViewerBundlesBuilder \
-# 	-buildTarget win64
-#
-# echo "Win64 build completed"
-#
-# # Check for Unity lockfile after Win64 build
-# check_unity_lockfile
+"$UNITY_EDITOR_PATH" \
+	-batchmode \
+	-quit \
+	-nographics \
+	-silent-crashes \
+	-logFile "${UNITY_BUILDER_LOGS}/${CURRENT_TIMESTAMP}_win64_build.txt" \
+	-projectPath unity-project/BartsViewerBundlesBuilder \
+	-buildTarget win64
+
+echo "Win64 build completed"
+
+# Check for Unity lockfile after Win64 build
+check_unity_lockfile
 
 echo "Copying Unity build output to S3..."
 # Copy the ServerData folder to S3 output bucket
