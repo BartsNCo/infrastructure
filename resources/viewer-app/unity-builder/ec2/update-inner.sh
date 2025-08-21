@@ -165,7 +165,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         IMAGE_NAME="${PANO_ID}.jpg"
         echo "Downloading ${UNITY_URL} to ${PANO_DIR}/${IMAGE_NAME}"
         
-        if aws s3 cp "s3://${S3_INPUT_BUCKET}/${UNITY_URL}" "${PANO_DIR}/${IMAGE_NAME}"; then
+        if aws s3 cp --no-progress "s3://${S3_INPUT_BUCKET}/${UNITY_URL}" "${PANO_DIR}/${IMAGE_NAME}"; then
             echo "  Successfully downloaded ${IMAGE_NAME}"
         else
             echo "  Failed to download ${IMAGE_NAME}"
@@ -177,7 +177,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
             FLOORPLAN_FILE="${FLOORPLAN_DIR}/${FLOORPLAN_ID}.jpg"
             mkdir -p "$FLOORPLAN_DIR"
             echo "Downloading floorplan ${FLOORPLAN_KEY} to ${FLOORPLAN_FILE}"
-            if aws s3 cp "s3://${S3_INPUT_BUCKET}/${FLOORPLAN_KEY}" "${FLOORPLAN_FILE}"; then
+            if aws s3 cp --no-progress "s3://${S3_INPUT_BUCKET}/${FLOORPLAN_KEY}" "${FLOORPLAN_FILE}"; then
                 echo "  Successfully downloaded floorplan file"
             else
                 echo "  Failed to download floorplan file"
@@ -189,7 +189,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
             AUDIO_FILE="${PANO_DIR}/${AUDIO_KEY}.mp3"
             mkdir -p "${PANO_DIR}/audio"
             echo "Downloading audio ${AUDIO_KEY} to ${AUDIO_FILE}"
-            if aws s3 cp "s3://${S3_INPUT_BUCKET}/${AUDIO_KEY}" "${AUDIO_FILE}"; then
+            if aws s3 cp --no-progress "s3://${S3_INPUT_BUCKET}/${AUDIO_KEY}" "${AUDIO_FILE}"; then
                 echo "  Successfully downloaded audio file"
             else
                 echo "  Failed to download audio file"
@@ -200,7 +200,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         if [ -n "$THUMBNAIL_KEY" ]; then
             THUMBNAIL_FILE="${TOUR_DIR}/${THUMBNAIL_KEY}.jpg"
             echo "Downloading thumbnail ${THUMBNAIL_KEY} to ${THUMBNAIL_FILE}"
-            if aws s3 cp "s3://${S3_INPUT_BUCKET}/${THUMBNAIL_KEY}" "${THUMBNAIL_FILE}"; then
+            if aws s3 cp --no-progress "s3://${S3_INPUT_BUCKET}/${THUMBNAIL_KEY}" "${THUMBNAIL_FILE}"; then
                 echo "  Successfully downloaded thumbnail file"
             else
                 echo "  Failed to download thumbnail file"
@@ -271,7 +271,7 @@ check_unity_lockfile
 echo "Copying Unity build output to S3..."
 # Copy the ServerData folder to S3 output bucket
 if [ -d "/home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData" ]; then
-    aws s3 sync --force --delete /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
+    aws s3 sync --force --delete --no-progress /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData/ "s3://${S3_OUTPUT_BUCKET}/assets/"
     echo "Unity build output copied to s3://${S3_OUTPUT_BUCKET}/assets/"
 else
     echo "Error: ServerData directory not found at /home/ubuntu/unity-project/BartsViewerBundlesBuilder/ServerData"
@@ -280,7 +280,7 @@ fi
 # Copy Unity addressables streaming assets to S3
 echo "Copying Unity addressables streaming assets output to S3..."
 if [ -d "/home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa" ]; then
-    aws s3 sync --force /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa/ "s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/" --delete
+    aws s3 sync --force --delete --no-progress /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa/ "s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/"
     echo "Unity addressables copied to s3://${S3_OUTPUT_BUCKET}/addressablesstreamingassets/"
 else
     echo "Warning: Addressables directory not found at /home/ubuntu/unity-project/BartsViewerBundlesBuilder/Library/com.unity.addressables/aa"
