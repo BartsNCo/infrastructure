@@ -152,6 +152,7 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
         PANO_ID=$(echo "$pano" | jq -r '.panoId')
         UNITY_URL=$(echo "$pano" | jq -r '.unityUrl')
         AUDIO_KEY=$(echo "$pano" | jq -r '.audioKey // empty')
+        TOUR_AUDIO_KEY=$(echo "$pano" | jq -r '.tourAudioKey // empty')
         THUMBNAIL_KEY=$(echo "$pano" | jq -r '.thumbnailKey // empty')
         FLOORPLANS=$(echo "$pano" | jq -r '.floorPlans // []')
         
@@ -193,6 +194,18 @@ if [ -n "${PANOS_JSON}" ] && [ "${PANOS_COUNT:-0}" -gt 0 ]; then
                 echo "  Successfully downloaded audio file"
             else
                 echo "  Failed to download audio file"
+            fi
+        fi
+        
+        # Download tour audio if available
+        if [ -n "$TOUR_AUDIO_KEY" ]; then
+            TOUR_AUDIO_FILE="${TOUR_DIR}/${TOUR_AUDIO_KEY}.mp3"
+            mkdir -p "${TOUR_DIR}/audio"
+            echo "Downloading tour audio ${TOUR_AUDIO_KEY} to ${TOUR_AUDIO_FILE}"
+            if aws s3 cp --no-progress "s3://${S3_INPUT_BUCKET}/${TOUR_AUDIO_KEY}" "${TOUR_AUDIO_FILE}"; then
+                echo "  Successfully downloaded tour audio file"
+            else
+                echo "  Failed to download tour audio file"
             fi
         fi
         

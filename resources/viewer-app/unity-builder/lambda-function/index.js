@@ -175,6 +175,7 @@ exports.handler = async (event, context) => {
                             unityUrl: pano.unityUrl,
                             panoName: pano.name,
                             audioKey: pano.audio || null,
+                            tourAudioKey: tour.audio || null,
                             thumbnailKey: tour.thumbnail || null
                         });
                     }
