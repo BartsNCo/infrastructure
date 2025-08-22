@@ -49,5 +49,5 @@ variable "unity_password" {
 variable "unity_builder_ami_id" {
   description = "AMI ID for the Unity builder EC2 instance"
   type        = string
-  default     = "ami-058655a2137bc9054"
+  default     = "ami-0093e8fe409a6418a"
 }
